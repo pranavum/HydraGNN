@@ -10,7 +10,7 @@
 ##############################################################################
 
 import torch
-from torch.nn import ModuleList, Sequential, ReLU, Linear
+from torch.nn import ModuleList, Sequential, ReLU, Linear, Embedding
 import torch.nn.functional as F
 from torch_geometric.nn import global_mean_pool, BatchNorm
 from torch.nn import GaussianNLLLoss
@@ -24,20 +24,29 @@ class Base(torch.nn.Module):
         hidden_dim: list,
         dropout: float = 0.25,
         num_conv_layers: int = 16,
+        node_embedding_dim: int = None,
     ):
         super().__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.dropout = dropout
         self.num_conv_layers = num_conv_layers
+        self.node_embedding_dim = node_embedding_dim
         self.convs = ModuleList()
         self.batch_norms = ModuleList()
 
         self._init_model()
 
     def _init_model(self):
-        self.convs.append(self.get_conv(self.input_dim, self.hidden_dim))
+
+        if self.node_embedding_dim is not None: 
+            self.node_embedding_layer = Embedding(self.input_dim, self.node_embedding_dim)
+            self.convs.append(self.get_conv(self.node_embedding_dim, self.hidden_dim))
+        else:
+            self.convs.append(self.get_conv(self.input_dim, self.hidden_dim))
+
         self.batch_norms.append(BatchNorm(self.hidden_dim))
+
         for _ in range(self.num_conv_layers - 1):
             conv = self.get_conv(self.hidden_dim, self.hidden_dim)
             self.convs.append(conv)
@@ -161,6 +170,9 @@ class Base(torch.nn.Module):
             data.edge_index,
             data.batch,
         )
+        if self.node_embedding_dim is not None:
+           x = self.node_embedding_layer(x)
+
         ### encoder part ####
         for conv, batch_norm in zip(self.convs, self.batch_norms):
             x = F.relu(batch_norm(conv(x=x, edge_index=edge_index)))
