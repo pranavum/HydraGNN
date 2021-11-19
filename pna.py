@@ -50,7 +50,8 @@ class Net(torch.nn.Module):
                               Linear(25, 1))
 
     def forward(self, x, edge_index, edge_attr, batch):
-        x = self.node_emb(x.squeeze())
+        #x = self.node_emb(x.squeeze())
+        x = self.node_emb(x)
         edge_attr = self.edge_emb(edge_attr)
 
         for conv, batch_norm in zip(self.convs, self.batch_norms):
@@ -89,7 +90,7 @@ def test(loader):
     total_error = 0
     for data in loader:
         data = data.to(device)
-        out = model(data.x, data.edge_index, data.edge_attr, data.batch)
+        out = model(data.x.squeeze(), data.edge_index, data.edge_attr, data.batch)
         total_error += (out.squeeze() - data.y).abs().sum().item()
     return total_error / len(loader.dataset)
 
