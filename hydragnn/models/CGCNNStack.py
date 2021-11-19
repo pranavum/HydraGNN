@@ -27,6 +27,7 @@ class CGCNNStack(Base):
         edge_dim: int = 0,
         dropout: float = 0.25,
         num_conv_layers: int = 16,
+        node_embedding_dim: int = None,
         ilossweights_hyperp: int = 1,  # if =1, considering weighted losses for different tasks and treat the weights as hyper parameters
         loss_weights: list = [1.0, 1.0, 1.0],  # weights for losses of different tasks
         ilossweights_nll: int = 0,  # if =1, using the scalar uncertainty as weights, as in paper

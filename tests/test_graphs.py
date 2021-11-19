@@ -17,10 +17,7 @@ import shutil
 
 import hydragnn, tests
 
-
-@pytest.mark.parametrize("model_type", ["GIN", "GAT", "MFC", "PNA", "CGCNN"])
-@pytest.mark.parametrize("ci_input", ["ci.json", "ci_multihead.json"])
-def pytest_train_model(model_type, ci_input, overwrite_data=False):
+def unittest_train_model(model_type, ci_input, use_input_embedding, overwrite_data=False):
 
     world_size, rank = hydragnn.utils.get_comm_size_and_rank()
 
@@ -32,6 +29,11 @@ def pytest_train_model(model_type, ci_input, overwrite_data=False):
     with open(config_file, "r") as f:
         config = json.load(f)
     config["NeuralNetwork"]["Architecture"]["model_type"] = model_type
+
+    # Use embedding layer only if explicitly stated in the configure file.
+    # For simplicity, set the dimensionality of the embedding layer to be equal to the dimensiona of the hidden layers
+    if use_input_embedding:
+        config["NeuralNetwork"]["Architecture"]["node_embedding_dim"] = config["NeuralNetwork"]["Architecture"]["hidden_dim"]
 
     if rank == 0:
         num_samples_tot = 500
@@ -152,3 +154,15 @@ def pytest_train_model(model_type, ci_input, overwrite_data=False):
     error_str = str("{:.6f}".format(error)) + " < " + str(thresholds[model_type][0])
     hydragnn.utils.print_distributed(verbosity, "total: " + error_str)
     assert error < thresholds[model_type][0], "Total RMSE checking failed!" + str(error)
+
+@pytest.mark.parametrize("model_type", ["GIN", "GAT", "MFC", "PNA", "CGCNN"])
+@pytest.mark.parametrize("ci_input", ["ci.json", "ci_multihead.json"])
+def pytest_train_model(model_type, ci_input, overwrite_data=False):
+    unittest_train_model(model_type, ci_input, False, overwrite_data)
+
+"""
+@pytest.mark.parametrize("model_type", ["GIN", "GAT", "MFC", "PNA", "CGCNN"])
+@pytest.mark.parametrize("ci_input", ["ci.json", "ci_multihead.json"])
+def pytest_train_model(model_type, ci_input, overwrite_data=False):
+    unittest_train_model(model_type, ci_input, True, overwrite_data)
+"""
