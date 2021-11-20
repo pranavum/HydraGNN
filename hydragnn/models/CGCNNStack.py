@@ -37,7 +37,7 @@ class CGCNNStack(Base):
 
         # CGCNN does not change embedding dimensions
         # We use input dimension (first argument of constructor) also as hidden dimension (second argument of constructor)
-        super().__init__(input_dim, input_dim, dropout, num_conv_layers)
+        super().__init__(input_dim, hidden_dim, dropout, num_conv_layers, node_embedding_dim)
 
         super()._multihead(
             output_dim,

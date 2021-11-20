@@ -42,6 +42,11 @@ def create(
 
     num_atoms = dataset[0].num_nodes  # FIXME: assumes constant number of atoms
 
+    if "node_embedding_dim" in config:
+       node_embedding_dim = config["node_embedding_dim"]
+    else:
+       node_embedding_dim = None
+
     if model_type == "GIN":
         model = GINStack(
             input_dim=input_dim,
@@ -49,7 +54,7 @@ def create(
             hidden_dim=config["hidden_dim"],
             num_nodes=num_atoms,
             num_conv_layers=config["num_conv_layers"],
-            node_embedding_dim=config["node_embedding_dim"] if config["node_embedding_dim"] else None,
+            node_embedding_dim=node_embedding_dim,
             output_type=config["output_type"],
             config_heads=config["output_heads"],
             loss_weights=config["task_weights"],
@@ -67,7 +72,7 @@ def create(
             num_nodes=num_atoms,
             hidden_dim=config["hidden_dim"],
             num_conv_layers=config["num_conv_layers"],
-            node_embedding_dim=config["num_conv_layers"] if config["num_conv_layers"] else None,
+            node_embedding_dim=node_embedding_dim,
             output_type=config["output_type"],
             config_heads=config["output_heads"],
             loss_weights=config["task_weights"],
@@ -90,7 +95,7 @@ def create(
             hidden_dim=config["hidden_dim"],
             num_nodes=num_atoms,
             num_conv_layers=config["num_conv_layers"],
-            node_embedding_dim=config["num_conv_layers"] if config["num_conv_layers"] else None,
+            node_embedding_dim=node_embedding_dim,
             output_type=config["output_type"],
             config_heads=config["output_heads"],
             loss_weights=config["task_weights"],
@@ -104,7 +109,7 @@ def create(
             hidden_dim=config["hidden_dim"],
             max_degree=config["max_neighbours"],
             num_conv_layers=config["num_conv_layers"],
-            node_embedding_dim=config["num_conv_layers"] if config["num_conv_layers"] else None,
+            node_embedding_dim=node_embedding_dim,
             output_type=config["output_type"],
             config_heads=config["output_heads"],
             loss_weights=config["task_weights"],
@@ -115,7 +120,7 @@ def create(
             output_dim=config["output_dim"],
             num_nodes=num_atoms,
             num_conv_layers=config["num_conv_layers"],
-            node_embedding_dim=config["num_conv_layers"] if config["num_conv_layers"] else None,
+            node_embedding_dim=node_embedding_dim,
             output_type=config["output_type"],
             config_heads=config["output_heads"],
             loss_weights=config["task_weights"],

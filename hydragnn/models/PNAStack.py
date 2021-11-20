@@ -44,7 +44,7 @@ class PNAStack(Base):
         ]
         self.deg = deg
 
-        super().__init__(input_dim, hidden_dim, dropout, num_conv_layers)
+        super().__init__(input_dim, hidden_dim, dropout, num_conv_layers, node_embedding_dim)
 
         super()._multihead(
             output_dim,
