@@ -24,8 +24,6 @@ def check_if_graph_size_constant(train_loader, val_loader, test_loader):
 
 import ase
 import torch
-import torch_geometric
-from torch_geometric.data import Data
 from torch_geometric.transforms import RadiusGraph, Distance
 
 
@@ -55,7 +53,7 @@ class RadiusGraphPBC(RadiusGraph):
         flow="source_to_target",
         periodic_boundary_conditions=False,
     ):
-        super.__init__(r, loop, max_num_neighbors, flow)
+        super().__init__(r, loop, max_num_neighbors, flow)
         self.periodic_boundary_conditions = periodic_boundary_conditions
 
     def __call__(self, data):
@@ -116,7 +114,7 @@ class DistancePBC(Distance):
 
     def __call__(self, data):
         if (not hasattr(data, "pbc")) or (not data.pbc):
-            super.__call__(data)
+            super().__call__(data)
         else:
             # If the connectivity of the data uses boundary conditions, then the edge length has already been added as an attribute
             assert hasattr(data, "attr")

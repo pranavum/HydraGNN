@@ -15,11 +15,11 @@ from sklearn.model_selection import StratifiedShuffleSplit
 
 import torch
 from torch_geometric.data import Data
-from torch_geometric.transforms import RadiusGraph, Distance
 
 from .dataset_descriptors import AtomFeatures
 from hydragnn.utils.distributed import get_device
 from hydragnn.utils.print_utils import print_distributed, iterate_tqdm
+from hydragnn.preprocess.utils import RadiusGraphPBC, DistancePBC
 
 
 class SerializedDataLoader:
@@ -64,7 +64,7 @@ class SerializedDataLoader:
             dataset = pickle.load(f)
 
         compute_edges = get_radius_graph(config["Architecture"])
-        compute_edge_lengths = Distance(norm=False, cat=True)
+        compute_edge_lengths = DistancePBC(norm=False, cat=True)
 
         dataset[:] = [compute_edges(data) for data in dataset]
         dataset[:] = [compute_edge_lengths(data) for data in dataset]
@@ -164,10 +164,11 @@ class SerializedDataLoader:
 
 
 def get_radius_graph(config):
-    return RadiusGraph(
+    return RadiusGraphPBC(
         r=config["radius"],
         loop=False,
         max_num_neighbors=config["max_neighbours"],
+        periodic_boundary_conditions=config["periodic_boundary_conditions"],
     )
 
 
