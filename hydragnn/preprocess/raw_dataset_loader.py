@@ -19,6 +19,8 @@ import torch
 from torch_geometric.data import Data
 from torch import tensor
 
+import ase
+
 # WARNING: DO NOT use collective communication calls here because only rank 0 uses this routines
 
 
@@ -60,7 +62,11 @@ class RawDataLoader:
         self.node_feature_name = config["node_features"]["name"]
         self.node_feature_dim = config["node_features"]["dim"]
         self.node_feature_col = config["node_features"]["column_index"]
-        self.graph_feature_name = config["graph_features"]["name"]
+        self.graph_feature_name = (
+            config["graph_features"]["name"]
+            if config["graph_features"]["name"] is not None
+            else None
+        )
         self.graph_feature_dim = config["graph_features"]["dim"]
         self.graph_feature_col = config["graph_features"]["column_index"]
         self.raw_dataset_name = config["name"]
@@ -92,21 +98,24 @@ class RawDataLoader:
                     continue
                 f = open(os.path.join(raw_data_path, filename), "r", encoding="utf-8")
                 all_lines = f.readlines()
-                
+
                 if self.data_format == "LSMS":
                     data_object = self.__transform_LSMS_input_to_data_object_base(
                         lines=all_lines
                     )
-                elif self.data_format == "EAM": 
+                elif self.data_format == "EAM":
                     data_object = self.__transform_EAM_input_to_data_object_base(
                         lines=all_lines
-                    )                    
-                                     
+                    )
+
                 dataset.append(data_object)
                 f.close()
-          
-                for idx, data_object in enumerate(dataset):
-                    dataset[idx] = self.__charge_density_update_for_LSMS(data_object)
+
+                if self.data_format == "LSMS":
+                    for idx, data_object in enumerate(dataset):
+                        dataset[idx] = self.__charge_density_update_for_LSMS(
+                            data_object
+                        )
 
             # scaled features by number of nodes
             dataset = self.__scale_features_by_num_nodes(dataset)
@@ -146,61 +155,67 @@ class RawDataLoader:
         data_object = Data()
 
         offset = 17
-             
+
         # Strips the newline character
         num_nodes = 0
-        node_id_counter = 0       
-        unit_cell_array = np.zeros((9,1)) 
+        node_id_counter = 0
+        unit_cell_array = np.zeros((9, 1))
 
         line = lines[0]
-        aux = re.search('=(.*)', line)
-        num_nodes = int(aux.group(1))  
-        node_id = [None] * num_nodes    
-        
+        aux = re.search("=(.*)", line)
+        num_nodes = int(aux.group(1))
+
+        node_id = None
         node_position_matrix = []
-        node_feature_matrix = []        
-        
+        node_feature_matrix = []
+
         count_lines = 1
-            
+
         for line in lines[1:]:
 
-            if count_lines >= 2 and count_lines <=10:
-                print("Line{}: {}".format(count_lines, line.strip()))  
-                aux = re.search('=(.*)A', line)
-                value = float(aux.group(1))            
-                unit_cell_array[count_lines-2] = value               
-                
-            node_feature = []
-                
-            if count_lines >= offset:
-                if (count_lines - offset)% 3 == 1:
-                    # atoms types can either be strings or integers
-                    # a string would represent the chemical species
-                    # an integers woudl represent the proton number
-                    node_id[node_id_counter] = line.strip()
-                    node_id_counter = node_id_counter + 1
-                    
-                elif (count_lines - offset)% 3 == 2:
-                    node_position_feature_string = line.strip()
-                    node_position_feature_split = node_position_feature_string.split()
-                    node_position_feature = [float(feature) for feature in node_position_feature_split]
-                    scaled_node_position = node_position_feature[0:3]
-                    unit_cell = unit_cell_array.reshape((3,3))
+            if 2 <= count_lines <= 10:
+                aux = re.search("=(.*)A", line)
+                value = float(aux.group(1))
+                unit_cell_array[count_lines - 2] = value
+
+            elif count_lines >= offset:
+                if (count_lines - offset) % 3 == 1:
+                    # EAM data format reads atoms based on their chemical types
+                    # We need to convert the string of the chemical type into the proton number
+                    # the proton number is represented by an integer
+                    node_type = ase.Atom(line.strip())
+                    node_id = node_type.number
+
+                elif (count_lines - offset) % 3 == 2:
+                    node_position_and_feature_string = line.strip()
+                    node_position_and_feature_split = (
+                        node_position_and_feature_string.split()
+                    )
+                    node_position_and_feature = [
+                        float(feature) for feature in node_position_and_feature_split
+                    ]
+                    scaled_node_position = node_position_and_feature[0:3]
+                    unit_cell = unit_cell_array.reshape((3, 3))
                     node_positions = unit_cell.dot(scaled_node_position)
                     x_pos = float(node_positions[0])
                     y_pos = float(node_positions[1])
                     z_pos = float(node_positions[2])
                     node_position_matrix.append([x_pos, y_pos, z_pos])
-                    
-                    node_feature = [ feature for feature in node_position_feature[3:] ]
-                    node_feature_matrix.append(node_feature)                  
-                    
+
+                    # I add the proton number as first node feature
+                    node_feature = [node_id]
+                    node_feature.extend(
+                        [feature for feature in node_position_and_feature[3:]]
+                    )
+
+                    node_feature_matrix.append(node_feature)
+
             count_lines += 1
 
         data_object.unit_cell = tensor(unit_cell)
         data_object.pos = tensor(node_position_matrix)
         data_object.x = tensor(node_feature_matrix)
-        
+
         return data_object
 
     def __transform_LSMS_input_to_data_object_base(self, lines: [str]):
