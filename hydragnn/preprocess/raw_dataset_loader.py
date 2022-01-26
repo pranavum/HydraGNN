@@ -295,20 +295,22 @@ class RawDataLoader:
         ]
 
         for idx, data_object in enumerate(dataset):
-            dataset[idx].y[scaled_graph_feature_index] = (
-                dataset[idx].y[scaled_graph_feature_index] / data_object.num_nodes
-            )
-            dataset[idx].x[:, scaled_node_feature_index] = (
-                dataset[idx].x[:, scaled_node_feature_index] / data_object.num_nodes
-            )
+            if dataset[idx].y is not None:
+               dataset[idx].y[scaled_graph_feature_index] = (
+                   dataset[idx].y[scaled_graph_feature_index] / data_object.num_nodes
+               )
+            if dataset[idx].x is not None:
+               dataset[idx].x[:, scaled_node_feature_index] = (
+                   dataset[idx].x[:, scaled_node_feature_index] / data_object.num_nodes
+               )
 
         return dataset
 
     def __normalize_dataset(self):
 
         """Performs the normalization on Data objects and returns the normalized dataset."""
-        num_node_features = self.dataset_list[0][0].x.shape[1]
-        num_graph_features = len(self.dataset_list[0][0].y)
+        num_node_features = self.dataset_list[0][0].x.shape[1] if self.dataset_list[0][0].x is not None else 0
+        num_graph_features = len(self.dataset_list[0][0].y) if self.dataset_list[0][0].y is not None else 0
 
         self.minmax_graph_feature = np.full((2, num_graph_features), np.inf)
         # [0,...]:minimum values; [1,...]: maximum values
