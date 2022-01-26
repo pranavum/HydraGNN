@@ -23,7 +23,7 @@
             "model_type": "PNA",
             "radius": 7,
             "max_neighbours": 100000,
-            "hidden_dim": 5,
+            "hidden_dim": 20,
             "num_conv_layers": 6,
             "output_heads": {
                 "graph":{
