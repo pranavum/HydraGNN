@@ -75,8 +75,8 @@ class RadiusGraphPBC(RadiusGraph):
                 cell=data.unit_cell,
                 pbc=True,
             )
-            edge_src, edge_dst, edge_shift = ase.neighborlist.neighbor_list(
-                "ijS", a=ase_atom_object, cutoff=self.r, self_interaction=self.loop
+            edge_src, edge_dst = ase.neighborlist.neighbor_list(
+                "ij", a=ase_atom_object, cutoff=self.r, self_interaction=self.loop
             )
             distance_matrix = ase_atom_object.get_all_distances(mic=True)
             data.edge_index = torch.stack(
