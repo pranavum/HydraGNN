@@ -75,6 +75,9 @@ class RadiusGraphPBC(RadiusGraph):
                 cell=data.unit_cell,
                 pbc=True,
             )
+            # ‘i’ : first atom index
+            # ‘j’ : second atom index
+            # https://wiki.fysik.dtu.dk/ase/ase/neighborlist.html#ase.neighborlist.neighbor_list
             edge_src, edge_dst = ase.neighborlist.neighbor_list(
                 "ij", a=ase_atom_object, cutoff=self.r, self_interaction=self.loop
             )
