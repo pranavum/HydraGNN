@@ -1,5 +1,10 @@
 from .dataset_descriptors import AtomFeatures, StructureFeatures
-from .utils import check_if_graph_size_constant, RadiusGraphPBC, DistancePBC
+from .utils import (
+    check_if_graph_size_constant,
+    get_radius_graph_config,
+    get_radius_graph_pbc_config,
+    RadiusGraphPBC,
+)
 from .load_data import (
     dataset_loading_and_splitting,
     create_dataloaders,
@@ -10,7 +15,6 @@ from .load_data import (
 from .serialized_dataset_loader import (
     SerializedDataLoader,
     update_predicted_values,
-    get_radius_graph,
 )
 from .raw_dataset_loader import RawDataLoader
 from .compositional_data_splitting import compositional_stratified_splitting
