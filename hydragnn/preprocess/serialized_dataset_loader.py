@@ -15,11 +15,15 @@ from sklearn.model_selection import StratifiedShuffleSplit
 
 import torch
 from torch_geometric.data import Data
+from torch_geometric.transforms import Distance
 
 from .dataset_descriptors import AtomFeatures
 from hydragnn.utils.distributed import get_device
 from hydragnn.utils.print_utils import print_distributed, iterate_tqdm
-from hydragnn.preprocess.utils import RadiusGraphPBC, DistancePBC
+from hydragnn.preprocess.utils import (
+    get_radius_graph_config,
+    get_radius_graph_pbc_config,
+)
 
 
 class SerializedDataLoader:
@@ -63,8 +67,12 @@ class SerializedDataLoader:
             _ = pickle.load(f)
             dataset = pickle.load(f)
 
-        compute_edges = get_radius_graph(config["Architecture"])
-        compute_edge_lengths = DistancePBC(norm=False, cat=True)
+        if config["Architecture"]["periodic_boundary_conditions"]:
+            # edge lengths already added manually if using PBC, so no need to call Distance.
+            compute_edges = get_radius_graph_pbc_config(config["Architecture"])
+        else:
+            compute_edges = get_radius_graph_config(config["Architecture"])
+            compute_edge_lengths = Distance(norm=False, cat=True)
 
         dataset[:] = [compute_edges(data) for data in dataset]
         dataset[:] = [compute_edge_lengths(data) for data in dataset]
@@ -161,15 +169,6 @@ class SerializedDataLoader:
             subsample.append(dataset[index])
 
         return subsample
-
-
-def get_radius_graph(config):
-    return RadiusGraphPBC(
-        r=config["radius"],
-        loop=False,
-        max_num_neighbors=config["max_neighbours"],
-        periodic_boundary_conditions=config["periodic_boundary_conditions"],
-    )
 
 
 def update_predicted_values(type: list, index: list, data: Data):
