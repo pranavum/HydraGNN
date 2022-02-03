@@ -68,14 +68,15 @@ class SerializedDataLoader:
             dataset = pickle.load(f)
 
         if config["Architecture"]["periodic_boundary_conditions"]:
-            # edge lengths already added manually if using PBC, so no need to call Distance.
             compute_edges = get_radius_graph_pbc_config(config["Architecture"])
         else:
             compute_edges = get_radius_graph_config(config["Architecture"])
-            compute_edge_lengths = Distance(norm=False, cat=True)
-
         dataset[:] = [compute_edges(data) for data in dataset]
-        dataset[:] = [compute_edge_lengths(data) for data in dataset]
+
+        # edge lengths already added manually if using PBC.
+        if not config["Architecture"]["periodic_boundary_conditions"]:
+            compute_edge_lengths = Distance(norm=False, cat=True)
+            dataset[:] = [compute_edge_lengths(data) for data in dataset]
 
         max_edge_length = torch.Tensor([float("-inf")])
 
