@@ -195,8 +195,8 @@ class RawDataLoader:
                         float(feature) for feature in node_position_and_feature_split
                     ]
                     scaled_node_position = node_position_and_feature[0:3]
-                    unit_cell = unit_cell_array.reshape((3, 3))
-                    node_positions = unit_cell.dot(scaled_node_position)
+                    supercell_size = unit_cell_array.reshape((3, 3))
+                    node_positions = supercell_size.dot(scaled_node_position)
                     x_pos = float(node_positions[0])
                     y_pos = float(node_positions[1])
                     z_pos = float(node_positions[2])
@@ -212,7 +212,7 @@ class RawDataLoader:
 
             count_lines += 1
 
-        data_object.unit_cell = tensor(unit_cell)
+        data_object.supercell_size = tensor(supercell_size)
         data_object.pos = tensor(node_position_matrix)
         data_object.x = tensor(node_feature_matrix)
 
