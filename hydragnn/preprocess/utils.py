@@ -11,6 +11,7 @@
 
 
 import ase
+import ase.neighborlist
 import torch
 from torch_geometric.transforms import RadiusGraph
 
@@ -55,15 +56,15 @@ class RadiusGraphPBC(RadiusGraph):
             "batch" not in data
         ), "Periodic boundary conditions not currently supported on batches."
         assert hasattr(
-            data, "unit_cell"
-        ), "The data must contain the size of the unit cell to apply periodic boundary conditions."
+            data, "supercell_size"
+        ), "The data must contain the size of the supercell to apply periodic boundary conditions."
         assert hasattr(
             data, "atom_types"
         ), "The data must contain information about the atoms types. Can be a chemical symbol (str) or an atomic number (int)."
         ase_atom_object = ase.Atoms(
             symbols=data.atom_types,
             positions=data.pos,
-            cell=data.unit_cell,
+            cell=data.supercell_size,
             pbc=True,
         )
         # ‘i’ : first atom index
