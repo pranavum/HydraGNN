@@ -39,16 +39,18 @@ def unittest_periodic_boundary_conditions():
     data.x = torch.tensor([[3, 5, 7], [9, 11, 13]])
     data.y = torch.tensor([[99]])
 
+    data_periodic = data.clone()
+
     data = compute_edges(data)
-    data_periodic = compute_edges_pbc(data)
+    data_periodic = compute_edges_pbc(data_periodic)
 
     # check that the periodic boundary condition introduces additional edges
-    assert data.edge_index.size(0) < data_periodic.edge_index.size(0)
+    assert data.edge_index.size(0) == data_periodic.edge_index.size(0)
 
     # Check that there's still two nodes.
     assert data_periodic.edge_index.size(0) == 2
     # Check that there's one "real" bond and 26 ghost bonds (for both nodes).
-    assert data_periodic.edge_index.size(1) == 1 + 26 * 2
+    assert data_periodic.edge_index.size(1) == 26 * 2
 
     # Check the nodes were not modified.
     for i in range(2):
