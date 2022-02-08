@@ -77,7 +77,7 @@ class RadiusGraphPBC(RadiusGraph):
         data.edge_index = torch.stack(
             [torch.LongTensor(edge_src), torch.LongTensor(edge_dst)], dim=0
         )
-        data.edge_attr = torch.zeros(ase_atom_object.get_global_number_of_atoms(), 1)
+        data.edge_attr = torch.zeros(edge_src.shape[0], 1)
         for index in range(0, edge_src.shape[0]):
             data.edge_attr[index, 1] = distance_matrix[edge_src[index], edge_dst[index]]
 
