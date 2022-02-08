@@ -26,13 +26,15 @@ def unittest_periodic_boundary_conditions():
     with open(config_file, "r") as f:
         config = json.load(f)
 
-    compute_edges = get_radius_graph_config(config['Architecture'])
-    compute_edges_pbc = get_radius_graph_pbc_config(config['Architecture'])
+    compute_edges = get_radius_graph_config(config["Architecture"])
+    compute_edges_pbc = get_radius_graph_pbc_config(config["Architecture"])
 
     # Create two nodes with arbitrary values.
     data = Data()
-    data.supercell_size = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
-    data.atom_types = [1, 1] # Hydrogen
+    data.supercell_size = torch.tensor(
+        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    )
+    data.atom_types = [1, 1]  # Hydrogen
     data.pos = torch.tensor([[0, 0, 0], [0.5, 0.5, 0.5]])
     data.x = torch.tensor([[3, 5, 7], [9, 11, 13]])
     data.y = torch.tensor([[99]])
