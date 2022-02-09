@@ -29,7 +29,7 @@ def check_if_graph_size_constant(train_loader, val_loader, test_loader):
     return graph_size_variable
 
 
-def get_radius_graph_config(config, loop):
+def get_radius_graph_config(config, loop=False):
     return RadiusGraph(
         r=config["radius"],
         loop=loop,
@@ -37,7 +37,7 @@ def get_radius_graph_config(config, loop):
     )
 
 
-def get_radius_graph_pbc_config(config, loop):
+def get_radius_graph_pbc_config(config, loop=False):
     return RadiusGraphPBC(
         r=config["radius"],
         loop=loop,
