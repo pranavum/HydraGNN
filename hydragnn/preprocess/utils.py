@@ -88,7 +88,9 @@ class RadiusGraphPBC(RadiusGraph):
 
         data.edge_attr = torch.zeros(data.edge_index.shape[1], 1)
         for index in range(0, data.edge_index.shape[1]):
-            data.edge_attr[index, 0] = distance_matrix[data.edge_index[0, index], data.edge_index[1, index]]
+            data.edge_attr[index, 0] = distance_matrix[
+                data.edge_index[0, index], data.edge_index[1, index]
+            ]
 
         return data
 

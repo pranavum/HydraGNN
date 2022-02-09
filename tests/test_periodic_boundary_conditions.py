@@ -27,8 +27,12 @@ def unittest_periodic_boundary_conditions():
         config = json.load(f)
 
     compute_edges = get_radius_graph_config(config["Architecture"], loop=False)
-    compute_edges_pbc_no_self_loops = get_radius_graph_pbc_config(config["Architecture"], loop=False)
-    compute_edges_pbc_with_self_loops = get_radius_graph_pbc_config(config["Architecture"], loop=True)
+    compute_edges_pbc_no_self_loops = get_radius_graph_pbc_config(
+        config["Architecture"], loop=False
+    )
+    compute_edges_pbc_with_self_loops = get_radius_graph_pbc_config(
+        config["Architecture"], loop=True
+    )
 
     # Create two nodes with arbitrary node features
     data = Data()
@@ -47,18 +51,22 @@ def unittest_periodic_boundary_conditions():
 
     data = compute_edges(data)
 
-    #check that there are two edges without self loops
+    # check that there are two edges without self loops
     assert data.edge_index.size(1)
 
-    data_periodic_no_self_loops = compute_edges_pbc_no_self_loops(data_periodic_no_self_loops)
-    data_periodic_with_self_loops = compute_edges_pbc_with_self_loops(data_periodic_with_self_loops)
+    data_periodic_no_self_loops = compute_edges_pbc_no_self_loops(
+        data_periodic_no_self_loops
+    )
+    data_periodic_with_self_loops = compute_edges_pbc_with_self_loops(
+        data_periodic_with_self_loops
+    )
 
     # Check that there's still two nodes.
     assert data_periodic_no_self_loops.edge_index.size(0) == 2
     assert data_periodic_with_self_loops.edge_index.size(0) == 2
 
     # check that the number of edges with periodic boundary conditions does not change if self loops are excluded
-    assert  data_periodic_no_self_loops.edge_index.size(1) == data.edge_index.size(1)
+    assert data_periodic_no_self_loops.edge_index.size(1) == data.edge_index.size(1)
 
     # check that the periodic boundary condition introduces additional edges if self loops are included
     assert data.edge_index.size(1) < data_periodic_with_self_loops.edge_index.size(1)
