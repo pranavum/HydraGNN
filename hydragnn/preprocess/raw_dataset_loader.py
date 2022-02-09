@@ -215,6 +215,8 @@ class RawDataLoader:
         data_object.supercell_size = tensor(supercell_size)
         data_object.pos = tensor(node_position_matrix)
         data_object.x = tensor(node_feature_matrix)
+        data_object.atom_types = data_object.x[:, 0]
+        data_object.atom_types = data_object.atom_types.int()
 
         return data_object
 

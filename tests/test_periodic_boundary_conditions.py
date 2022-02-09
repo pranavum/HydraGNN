@@ -26,10 +26,17 @@ def unittest_periodic_boundary_conditions():
     with open(config_file, "r") as f:
         config = json.load(f)
 
+<<<<<<< HEAD
     compute_edges = get_radius_graph_config(config["Architecture"])
     compute_edges_pbc = get_radius_graph_pbc_config(config["Architecture"])
 
     # Create two nodes with arbitrary values.
+=======
+    compute_edges = get_radius_graph_config(config["Architecture"], loop=False)
+    compute_edges_pbc_no_self_loops = get_radius_graph_pbc_config(config["Architecture"], loop=False)
+    compute_edges_pbc_with_self_loops = get_radius_graph_pbc_config(config["Architecture"], loop=True)
+
+    # Create two nodes with arbitrary node features
     data = Data()
     data.supercell_size = torch.tensor(
         [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
@@ -51,13 +58,46 @@ def unittest_periodic_boundary_conditions():
     assert data_periodic.edge_index.size(0) == 2
     # Check that there's one "real" bond and 26 ghost bonds (for both nodes).
     assert data_periodic.edge_index.size(1) == 26 * 2
+=======
+    data.atom_types = [1, 1]  # Hydrogen molecule (H2)
+    data.pos = torch.tensor([[0, 0, 0], [0.5, 0.5, 0.5]])
+    data.x = torch.tensor([[3, 5, 7], [9, 11, 13]])
+
+    # Create arbitrary global feature
+    data.y = torch.tensor([[99]])
+
+    data_periodic_no_self_loops = data.clone()
+    data_periodic_with_self_loops = data.clone()
+
+    data = compute_edges(data)
+
+    #check that there are two edges without self loops
+    assert data.edge_index.size(1)
+
+    data_periodic_no_self_loops = compute_edges_pbc_no_self_loops(data_periodic_no_self_loops)
+    data_periodic_with_self_loops = compute_edges_pbc_with_self_loops(data_periodic_with_self_loops)
+
+    # Check that there's still two nodes.
+    assert data_periodic_no_self_loops.edge_index.size(0) == 2
+    assert data_periodic_with_self_loops.edge_index.size(0) == 2
+
+    # check that the number of edges with periodic boundary conditions does not change if self loops are excluded
+    assert  data_periodic_no_self_loops.edge_index.size(1) == data.edge_index.size(1)
+
+    # check that the periodic boundary condition introduces additional edges if self loops are included
+    assert data.edge_index.size(1) < data_periodic_with_self_loops.edge_index.size(1)
+    # Check that there's one "real" bond and 26 ghost bonds (for both nodes).
+    assert data_periodic_with_self_loops.edge_index.size(1) == 4
 
     # Check the nodes were not modified.
     for i in range(2):
         for d in range(3):
-            assert data_periodic.pos[i][d] == data.pos[i][d]
-        assert data_periodic.x[i][0] == data.x[i][0]
-    assert data_periodic.y == data.y
+            assert data_periodic_no_self_loops.pos[i][d] == data.pos[i][d]
+            assert data_periodic_with_self_loops.pos[i][d] == data.pos[i][d]
+        assert data_periodic_no_self_loops.x[i][0] == data.x[i][0]
+        assert data_periodic_with_self_loops.x[i][0] == data.x[i][0]
+    assert data_periodic_no_self_loops.y == data.y
+    assert data_periodic_with_self_loops.y == data.y
 
 
 def pytest_train_model():
