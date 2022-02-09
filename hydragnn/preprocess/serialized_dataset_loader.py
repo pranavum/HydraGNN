@@ -68,9 +68,11 @@ class SerializedDataLoader:
             dataset = pickle.load(f)
 
         if config["Architecture"]["periodic_boundary_conditions"]:
-            compute_edges = get_radius_graph_pbc_config(config["Architecture"])
+            compute_edges = get_radius_graph_pbc_config(
+                config["Architecture"], loop=False
+            )
         else:
-            compute_edges = get_radius_graph_config(config["Architecture"])
+            compute_edges = get_radius_graph_config(config["Architecture"], loop=False)
         dataset[:] = [compute_edges(data) for data in dataset]
 
         # edge lengths already added manually if using PBC.
