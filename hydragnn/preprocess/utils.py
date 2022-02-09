@@ -29,7 +29,7 @@ def check_if_graph_size_constant(train_loader, val_loader, test_loader):
     return graph_size_variable
 
 
-def get_radius_graph_config(config, loop):
+def get_radius_graph_config(config, loop=False):
     return RadiusGraph(
         r=config["radius"],
         loop=loop,
@@ -37,7 +37,7 @@ def get_radius_graph_config(config, loop):
     )
 
 
-def get_radius_graph_pbc_config(config, loop):
+def get_radius_graph_pbc_config(config, loop=False):
     return RadiusGraphPBC(
         r=config["radius"],
         loop=loop,
@@ -78,9 +78,19 @@ class RadiusGraphPBC(RadiusGraph):
         data.edge_index = torch.stack(
             [torch.LongTensor(edge_src), torch.LongTensor(edge_dst)], dim=0
         )
-        data.edge_attr = torch.zeros(edge_src.shape[0], 1)
-        for index in range(0, edge_src.shape[0]):
-            data.edge_attr[index, 0] = distance_matrix[edge_src[index], edge_dst[index]]
+
+        # remove duplicate edges
+        data.coalesce()
+
+        # remove self loops in a graph
+        if not self.loop:
+            data.edge_index = remove_self_loops(data.edge_index, None)[0]
+
+        data.edge_attr = torch.zeros(data.edge_index.shape[1], 1)
+        for index in range(0, data.edge_index.shape[1]):
+            data.edge_attr[index, 0] = distance_matrix[
+                data.edge_index[0, index], data.edge_index[1, index]
+            ]
 
         # remove duplicate edges
         data.coalesce()
