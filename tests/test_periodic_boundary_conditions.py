@@ -26,12 +26,6 @@ def unittest_periodic_boundary_conditions():
     with open(config_file, "r") as f:
         config = json.load(f)
 
-<<<<<<< HEAD
-    compute_edges = get_radius_graph_config(config["Architecture"])
-    compute_edges_pbc = get_radius_graph_pbc_config(config["Architecture"])
-
-    # Create two nodes with arbitrary values.
-=======
     compute_edges = get_radius_graph_config(config["Architecture"], loop=False)
     compute_edges_pbc_no_self_loops = get_radius_graph_pbc_config(
         config["Architecture"], loop=False
@@ -45,24 +39,6 @@ def unittest_periodic_boundary_conditions():
     data.supercell_size = torch.tensor(
         [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     )
-    data.atom_types = [1, 1]  # Hydrogen
-    data.pos = torch.tensor([[0, 0, 0], [0.5, 0.5, 0.5]])
-    data.x = torch.tensor([[3, 5, 7], [9, 11, 13]])
-    data.y = torch.tensor([[99]])
-
-    data_periodic = data.clone()
-
-    data = compute_edges(data)
-    data_periodic = compute_edges_pbc(data_periodic)
-
-    # check that the periodic boundary condition introduces additional edges
-    assert data.edge_index.size(0) == data_periodic.edge_index.size(0)
-
-    # Check that there's still two nodes.
-    assert data_periodic.edge_index.size(0) == 2
-    # Check that there's one "real" bond and 26 ghost bonds (for both nodes).
-    assert data_periodic.edge_index.size(1) == 26 * 2
-=======
     data.atom_types = [1, 1]  # Hydrogen molecule (H2)
     data.pos = torch.tensor([[0, 0, 0], [0.5, 0.5, 0.5]])
     data.x = torch.tensor([[3, 5, 7], [9, 11, 13]])
