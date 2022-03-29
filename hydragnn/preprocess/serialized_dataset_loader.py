@@ -50,6 +50,9 @@ class SerializedDataLoader:
         self.periodic_boundary_conditions = config["NeuralNetwork"]["Architecture"][
             "periodic_boundary_conditions"
         ]
+        self.edge_features = None
+        if "edge_features" in config["NeuralNetwork"]["Architecture"]:
+            self.edge_features = config["NeuralNetwork"]["Architecture"]
         self.radius = config["NeuralNetwork"]["Architecture"]["radius"]
         self.max_neighbours = config["NeuralNetwork"]["Architecture"]["max_neighbours"]
         self.variables = config["NeuralNetwork"]["Variables_of_interest"]
@@ -116,23 +119,19 @@ class SerializedDataLoader:
                 loop=False,
                 max_neighbours=self.max_neighbours,
             )
-            compute_edge_lengths = Distance(norm=False, cat=True)
 
         dataset[:] = [compute_edges(data) for data in dataset]
 
         # edge lengths already added manually if using PBC.
-        if not self.periodic_boundary_conditions:
+        if self.edge_features is not None and "lengths" in self.edge_features:
             compute_edge_lengths = Distance(norm=False, cat=True)
             dataset[:] = [compute_edge_lengths(data) for data in dataset]
-
-        max_edge_length = torch.Tensor([float("-inf")])
-
-        for data in dataset:
-            max_edge_length = torch.max(max_edge_length, torch.max(data.edge_attr))
-
-        # Normalization of the edges
-        for data in dataset:
-            data.edge_attr = data.edge_attr / max_edge_length
+            for data in dataset:
+                max_edge_length = torch.Tensor([float("-inf")])
+                max_edge_length = torch.max(max_edge_length, torch.max(data.edge_attr))
+            # Normalization of the edges
+            for data in dataset:
+                data.edge_attr = data.edge_attr / max_edge_length
 
         # Move data to the device, if used. # FIXME: this does not respect the choice set by use_gpu
         device = get_device(verbosity_level=self.verbosity)

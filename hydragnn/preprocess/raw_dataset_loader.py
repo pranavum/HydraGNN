@@ -13,17 +13,30 @@ import os
 import numpy as np
 import pickle
 
+import csv
+
 import torch
 from torch_geometric.data import Data
 from torch import tensor
 
 from ase.io.cfg import read_cfg
+from ase.io import read
 
 # WARNING: DO NOT use collective communication calls here because only rank 0 uses this routines
 
 
 def tensor_divide(x1, x2):
     return torch.from_numpy(np.divide(x1, x2, out=np.zeros_like(x1), where=x2 != 0))
+
+
+def import_property_csv_file(csv_file):
+    dict_from_csv = {}
+
+    with open(csv_file, mode="r") as inp:
+        reader = csv.reader(inp)
+        dict_from_csv = {rows[0]: rows[1] for rows in reader}
+
+    return dict_from_csv
 
 
 class RawDataLoader:
@@ -100,13 +113,20 @@ class RawDataLoader:
                 len(os.listdir(raw_data_path)) > 0
             ), "No data files provided in {}!".format(raw_data_path)
 
+            dictionary_property = None
+
+            if self.data_format == "CIF":
+                property_path = raw_data_path + "/" + "formationenergy.csv"
+                dictionary_property = import_property_csv_file(property_path)
+
             for name in os.listdir(raw_data_path):
                 if name == ".DS_Store":
                     continue
                 # if the directory contains file, iterate over them
                 if os.path.isfile(os.path.join(raw_data_path, name)):
                     data_object = self.__transform_input_to_data_object_base(
-                        filepath=os.path.join(raw_data_path, name)
+                        filepath=os.path.join(raw_data_path, name),
+                        dictionary_property=dictionary_property,
                     )
                     if not isinstance(data_object, type(None)):
                         dataset.append(data_object)
@@ -116,7 +136,8 @@ class RawDataLoader:
                     for subname in os.listdir(dir_name):
                         if os.path.isfile(os.path.join(dir_name, subname)):
                             data_object = self.__transform_input_to_data_object_base(
-                                filepath=os.path.join(dir_name, subname)
+                                filepath=os.path.join(dir_name, subname),
+                                dictionary_property=dictionary_property,
                             )
                             if not isinstance(data_object, type(None)):
                                 dataset.append(data_object)
@@ -147,19 +168,22 @@ class RawDataLoader:
                 pickle.dump(self.minmax_graph_feature, f)
                 pickle.dump(dataset_normalized, f)
 
-    def __transform_input_to_data_object_base(self, filepath):
+    def __transform_input_to_data_object_base(self, filepath, dictionary_property):
         if self.data_format == "LSMS" or self.data_format == "unit_test":
             data_object = self.__transform_LSMS_input_to_data_object_base(
                 filepath=filepath
             )
-        elif self.data_format == "CFG":
-            data_object = self.__transform_CFG_input_to_data_object_base(
-                filepath=filepath
+        elif self.data_format == "CFG" or self.data_format == "CIF":
+            data_object = self.__transform_input_file_to_data_object_base(
+                filepath=filepath, dictionary_property=dictionary_property
             )
+
         return data_object
 
-    def __transform_CFG_input_to_data_object_base(self, filepath):
-        """Transforms lines of strings read from the raw data CFG file to Data object and returns it.
+    def __transform_input_file_to_data_object_base(
+        self, filepath, dictionary_property=None
+    ):
+        """Transforms lines of strings read from the raw data CIF file to Data object and returns it.
 
         Parameters
         ----------
@@ -173,14 +197,28 @@ class RawDataLoader:
 
         if filepath.endswith(".cfg"):
 
-            data_object = self.__transform_ASE_object_to_data_object(filepath)
+            data_object = self.__transform_CFG_file_to_data_object(filepath)
 
             return data_object
+
+        elif filepath.endswith(".cif"):
+
+            file_path_splitting = os.path.split(filepath)
+            filename_without_extension = os.path.splitext(file_path_splitting[1])[0]
+
+            if filename_without_extension in dictionary_property.keys():
+                data_object = self.__transform_CIF_file_to_data_object(
+                    filepath, dictionary_property
+                )
+                return data_object
+
+            else:
+                return None
 
         else:
             return None
 
-    def __transform_ASE_object_to_data_object(self, filepath):
+    def __transform_CFG_file_to_data_object(self, filepath):
 
         # FIXME:
         #  this still assumes bulk modulus is specific to the CFG format.
@@ -220,6 +258,29 @@ class RawDataLoader:
                     it_comp = self.graph_feature_col[item] + icomp
                     g_feature.append(float(graph_feat[it_comp].strip()))
             data_object.y = tensor(g_feature)
+
+        return data_object
+
+    def __transform_CIF_file_to_data_object(self, filepath, dictionary_property):
+
+        # FIXME:
+        #  this still assumes bulk modulus is specific to the CIG format.
+
+        # I do not succeed in making ase.io.cif.read_cfi work, so I use ase.io.read
+        ase_object = read(filepath)
+
+        file_path_splitting = os.path.split(filepath)
+        filename_without_extension = os.path.splitext(file_path_splitting[1])[0]
+
+        data_object = Data()
+        data_object.supercell_size = tensor(ase_object.cell.array).float()
+        data_object.pos = tensor(ase_object.arrays["positions"]).float()
+        proton_numbers = np.expand_dims(ase_object.arrays["numbers"], axis=1)
+        data_object.x = tensor(proton_numbers).float()
+
+        g_feature = []
+        g_feature.append(float(dictionary_property[filename_without_extension]))
+        data_object.y = tensor(g_feature)
 
         return data_object
 
