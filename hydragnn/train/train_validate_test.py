@@ -149,6 +149,26 @@ def train_validate_test(
             config["Variables_of_interest"]["y_minmax"], true_values, predicted_values
         )
 
+    num_samples = int(len(true_values[0]) / model.head_dims[0])
+
+    for isample in range(num_samples):
+        import matplotlib.pyplot as plt
+
+        plt.figure()
+        plt.plot(
+            true_values[0][
+                isample * model.head_dims[0] : (isample + 1) * model.head_dims[0]
+            ]
+        )
+        plt.plot(
+            predicted_values[0][
+                isample * model.head_dims[0] : (isample + 1) * model.head_dims[0]
+            ]
+        )
+        plt.draw()
+        plt.savefig(f"./logs/{model_with_config_name}/spectrum_" + str(isample))
+
+    """
     if create_plots:
         ######result visualization######
         visualizer.create_plot_global(
@@ -172,6 +192,7 @@ def train_validate_test(
             model.loss_weights,
             config["Variables_of_interest"]["output_names"],
         )
+    """
 
 
 def get_head_indices(model, data):

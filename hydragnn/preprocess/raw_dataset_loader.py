@@ -74,6 +74,7 @@ class RawDataLoader:
         self.raw_dataset_name = config["name"]
         self.data_format = config["format"]
         self.path_dictionary = config["path"]
+        self.normalize_input = config["normalize_input"]
 
         assert len(self.node_feature_name) == len(self.node_feature_dim)
         assert len(self.node_feature_name) == len(self.node_feature_col)
@@ -137,15 +138,17 @@ class RawDataLoader:
             self.dataset_list.append(dataset)
             self.serial_data_name_list.append(serial_data_name)
 
-        self.__normalize_dataset()
+        if self.normalize_input:
+            self.__normalize_dataset()
 
         for serial_data_name, dataset_normalized in zip(
             self.serial_data_name_list, self.dataset_list
         ):
             with open(os.path.join(serialized_dir, serial_data_name), "wb") as f:
-                pickle.dump(self.minmax_node_feature, f)
-                pickle.dump(self.minmax_graph_feature, f)
-                pickle.dump(dataset_normalized, f)
+                if self.normalize_input:
+                    pickle.dump(self.minmax_node_feature, f)
+                    pickle.dump(self.minmax_graph_feature, f)
+                pickle.dump(dataset, f)
 
     def __transform_input_to_data_object_base(self, filepath):
         if self.data_format == "LSMS" or self.data_format == "unit_test":
@@ -156,6 +159,11 @@ class RawDataLoader:
             data_object = self.__transform_CFG_input_to_data_object_base(
                 filepath=filepath
             )
+        elif self.data_format == "YQ":
+            data_object = self.__transform_spectroscopy_input_to_data_object_base(
+                filepath=filepath
+            )
+
         return data_object
 
     def __transform_CFG_input_to_data_object_base(self, filepath):
@@ -174,6 +182,28 @@ class RawDataLoader:
         if filepath.endswith(".cfg"):
 
             data_object = self.__transform_ASE_object_to_data_object(filepath)
+
+            return data_object
+
+        else:
+            return None
+
+    def __transform_spectroscopy_input_to_data_object_base(self, filepath):
+        """Transforms lines of strings read from the raw data CFG file to Data object and returns it.
+
+        Parameters
+        ----------
+        lines:
+          content of data file with all the graph information
+        Returns
+        ----------
+        Data
+            Data object representing structure of a graph sample.
+        """
+
+        if filepath.endswith(".xyz"):
+
+            data_object = self.__transform_YQ_object_to_data_object(filepath)
 
             return data_object
 
@@ -271,6 +301,74 @@ class RawDataLoader:
 
         data_object.pos = tensor(node_position_matrix)
         data_object.x = tensor(node_feature_matrix)
+        return data_object
+
+    def __transform_YQ_object_to_data_object(self, filepath):
+        """Transforms lines of strings read from the raw data file to Data object and returns it.
+        Parameters
+        ----------
+        lines:
+          content of data file with all the graph information
+        Returns
+        ----------
+        Data
+            Data object representing structure of a graph sample.
+        """
+
+        data_object = Data()
+
+        # input files
+        if filepath.find("xyz") != -1:
+            f = open(filepath, "r", encoding="utf-8")
+
+            node_feature_matrix = []
+            node_position_matrix = []
+
+            all_lines = f.readlines()
+
+            for line in all_lines:
+                node_feat = line.split(None, 11)
+
+                x_pos = float(node_feat[1].strip())
+                y_pos = float(node_feat[2].strip())
+                z_pos = float(node_feat[3].strip())
+                node_position_matrix.append([x_pos, y_pos, z_pos])
+
+                node_feature = []
+                node_feature_dim = [1]
+                node_feature_col = [0]
+                for item in range(len(node_feature_dim)):
+                    for icomp in range(node_feature_dim[item]):
+                        it_comp = node_feature_col[item] + icomp
+                        node_feature.append(float(node_feat[it_comp].strip()))
+                node_feature_matrix.append(node_feature)
+
+            data_object.pos = tensor(node_position_matrix)
+            data_object.x = tensor(node_feature_matrix)
+
+        filename_without_extension = os.path.splitext(filepath)[0]
+
+        # output files
+        if os.path.exists(filename_without_extension + "_vis_inc_0K" + ".csv") != -1:
+
+            f = open(
+                filename_without_extension + "_vis_inc_0K" + ".csv",
+                "r",
+                encoding="utf-8",
+            )
+            all_lines = f.readlines()
+
+            g_feature = []
+
+            start_line = 500
+            end_line = 1001
+
+            for line in all_lines[start_line:end_line]:
+                node_feat = line.split(",", 11)
+                g_feature.append(float(node_feat[3]))
+
+            data_object.y = tensor(g_feature)
+
         return data_object
 
     def __charge_density_update_for_LSMS(self, data_object: Data):

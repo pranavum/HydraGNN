@@ -46,6 +46,7 @@ class SerializedDataLoader:
         self.graph_feature_name = config["Dataset"]["graph_features"]["name"]
         self.graph_feature_dim = config["Dataset"]["graph_features"]["dim"]
         self.graph_feature_col = config["Dataset"]["graph_features"]["column_index"]
+        self.normalize_input = config["Dataset"]["normalize_input"]
         self.rotational_invariance = config["Dataset"]["rotational_invariance"]
         self.periodic_boundary_conditions = config["NeuralNetwork"]["Architecture"][
             "periodic_boundary_conditions"
@@ -95,8 +96,9 @@ class SerializedDataLoader:
         """
         dataset = []
         with open(dataset_path, "rb") as f:
-            _ = pickle.load(f)
-            _ = pickle.load(f)
+            if self.normalize_input:
+                _ = pickle.load(f)
+                _ = pickle.load(f)
             dataset = pickle.load(f)
 
         rotational_invariance = NormalizeRotation(max_points=-1, sort=False)

@@ -155,8 +155,9 @@ def total_to_train_val_test_pkls(config):
         file_dir = f"{os.environ['SERIALIZED_DATA_PATH']}/serialized_dataset/{config['Dataset']['name']}.pkl"
     # if "total" raw dataset is provided, generate train/val/test pkl files and update config dict.
     with open(file_dir, "rb") as f:
-        minmax_node_feature = pickle.load(f)
-        minmax_graph_feature = pickle.load(f)
+        if config["Dataset"]["normalize_input"]:
+            minmax_node_feature = pickle.load(f)
+            minmax_graph_feature = pickle.load(f)
         dataset_total = pickle.load(f)
 
     trainset, valset, testset = split_dataset(
@@ -175,8 +176,9 @@ def total_to_train_val_test_pkls(config):
         )
         if rank == 0:
             with open(os.path.join(serialized_dir, serial_data_name), "wb") as f:
-                pickle.dump(minmax_node_feature, f)
-                pickle.dump(minmax_graph_feature, f)
+                if config["Dataset"]["normalize_input"]:
+                    pickle.dump(minmax_node_feature, f)
+                    pickle.dump(minmax_graph_feature, f)
                 pickle.dump(dataset, f)
 
     if dist.is_initialized():
