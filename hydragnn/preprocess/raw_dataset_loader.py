@@ -74,12 +74,24 @@ class RawDataLoader:
         self.raw_dataset_name = config["name"]
         self.data_format = config["format"]
         self.path_dictionary = config["path"]
-        self.normalize_input = config["normalize_input"]
+        self.normalize_input = (
+            config["normalize_input"]
+            if config["normalize_input"] is not None
+            else False
+        )
+        self.standardize_input = (
+            config["standardize_input"]
+            if config["standardize_input"] is not None
+            else False
+        )
 
         assert len(self.node_feature_name) == len(self.node_feature_dim)
         assert len(self.node_feature_name) == len(self.node_feature_col)
         assert len(self.graph_feature_name) == len(self.graph_feature_dim)
         assert len(self.graph_feature_name) == len(self.graph_feature_col)
+
+        # only one between normalization and standardization makes sense to be used
+        assert not (self.normalize_input and self.standardize_input)
 
     def load_raw_data(self):
         """Loads the raw files from specified path, performs the transformation to Data objects and normalization of values.
@@ -140,6 +152,8 @@ class RawDataLoader:
 
         if self.normalize_input:
             self.__normalize_dataset()
+        elif self.standardize_input:
+            self.__standardize_dataset()
 
         for serial_data_name, dataset_normalized in zip(
             self.serial_data_name_list, self.dataset_list
@@ -413,6 +427,115 @@ class RawDataLoader:
                 )
 
         return dataset
+
+    def __standardize_dataset(self):
+
+        """Performs the normalization on Data objects and returns the normalized dataset."""
+        num_node_features = len(self.node_feature_dim)
+        num_graph_features = len(self.graph_feature_dim)
+
+        count_data_samples = sum([len(dataset) for dataset in self.dataset_list])
+
+        self.mean_graph_feature = []
+        self.std_graph_feature = []
+        self.mean_node_feature = []
+        self.std_node_feature = []
+
+        # Iterate over graph features and define tensors full of zeros for mean and full of ones for standard deviation
+        for ifeat in range(num_graph_features):
+            self.mean_graph_feature.append(torch.zeros(self.graph_feature_dim[ifeat]))
+            self.std_graph_feature.append(torch.zeros(self.graph_feature_dim[ifeat]))
+
+        # Iterate over node features and define tensors full of zeros
+        for ifeat in range(num_node_features):
+            self.mean_node_feature.append(torch.zeros(self.node_feature_dim[ifeat]))
+            self.std_node_feature.append(torch.zeros(self.node_feature_dim[ifeat]))
+
+        # compute the entry-wise mean for each graph-level and node-level feature
+        for dataset in self.dataset_list:
+            for data in dataset:
+                # find maximum and minimum values for graph level features
+                g_index_start = 0
+                for ifeat in range(num_graph_features):
+                    g_index_end = g_index_start + self.graph_feature_dim[ifeat]
+                    self.mean_graph_feature[ifeat] += (
+                        data.y[g_index_start:g_index_end] / count_data_samples
+                    )
+                    g_index_start = g_index_end
+
+                # find maximum and minimum values for node level features
+                n_index_start = 0
+                for ifeat in range(num_node_features):
+                    n_index_end = n_index_start + self.node_feature_dim[ifeat]
+                    self.mean_node_feature[ifeat] += (
+                        torch.mean(data.x[:, n_index_start:n_index_end], dim=0)
+                        / count_data_samples
+                    )
+                    n_index_start = n_index_end
+
+        # compute the entry-wise variance for each graph-level and node-level feature
+        for dataset in self.dataset_list:
+            for data in dataset:
+                # find maximum and minimum values for graph level features
+                g_index_start = 0
+                for ifeat in range(num_graph_features):
+                    g_index_end = g_index_start + self.graph_feature_dim[ifeat]
+                    self.std_graph_feature[ifeat] += (
+                        torch.pow(
+                            data.y[g_index_start:g_index_end]
+                            - self.mean_graph_feature[ifeat],
+                            2,
+                        )
+                        / count_data_samples
+                    )
+                    g_index_start = g_index_end
+
+                # find maximum and minimum values for node level features
+                n_index_start = 0
+                for ifeat in range(num_node_features):
+                    n_index_end = n_index_start + self.node_feature_dim[ifeat]
+                    self.std_node_feature[ifeat] += (
+                        torch.pow(
+                            torch.mean(data.x[:, n_index_start:n_index_end], dim=0)
+                            - self.mean_node_feature[ifeat],
+                            2,
+                        )
+                        / count_data_samples
+                    )
+                    n_index_start = n_index_end
+
+        # compute the entry-wise square root of the variance to obtain the standard deviation
+        for ifeat in range(num_graph_features):
+            self.std_graph_feature[ifeat] = torch.sqrt(self.std_graph_feature[ifeat])
+
+        for ifeat in range(num_node_features):
+            self.std_node_feature[ifeat] = torch.sqrt(self.std_node_feature[ifeat])
+
+        # standardize the data
+        for dataset in self.dataset_list:
+            for data in dataset:
+                g_index_start = 0
+                for ifeat in range(num_graph_features):
+                    g_index_end = g_index_start + self.graph_feature_dim[ifeat]
+                    data.y[g_index_start:g_index_end] = tensor_divide(
+                        (
+                            data.y[g_index_start:g_index_end]
+                            - self.mean_graph_feature[ifeat]
+                        ),
+                        (self.std_graph_feature[ifeat]),
+                    )
+                    g_index_start = g_index_end
+                n_index_start = 0
+                for ifeat in range(num_node_features):
+                    n_index_end = n_index_start + self.node_feature_dim[ifeat]
+                    data.x[:, n_index_start:n_index_end] = tensor_divide(
+                        (
+                            data.x[:, n_index_start:n_index_end]
+                            - self.mean_node_feature[ifeat]
+                        ),
+                        (self.std_node_feature[ifeat]),
+                    )
+                    n_index_start = n_index_end
 
     def __normalize_dataset(self):
 
