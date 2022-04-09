@@ -1,0 +1,63 @@
+{
+    "Verbosity": {
+        "level": 2
+    },
+    "Dataset": {
+        "name": "YQ",
+        "path": {"total": "./YQ_pubchem"},
+        "format": "YQ",
+        "compositional_stratified_splitting": false,
+        "rotational_invariance": true,
+        "node_features": {
+            "name": ["num_of_protons"],
+            "dim": [1],
+            "column_index": [0]
+        },
+        "graph_features":{
+            "name": ["spectrum"],
+            "dim": [501],
+            "column_index": [3]
+        },
+        "normalize_input": false,
+        "standardize_input": true
+    },
+    "NeuralNetwork": {
+        "Architecture": {
+            "model_type": "PNA",
+            "radius": 5,
+            "periodic_boundary_conditions": false,
+            "edge_features": ["length"],
+            "max_neighbours": 100000,
+            "hidden_dim": 10,
+            "num_conv_layers": 6,
+            "output_heads": {
+                "graph":{
+                    "num_sharedlayers": 3,
+                    "dim_sharedlayers": 1000,
+                    "num_headlayers": 2,
+                    "dim_headlayers": [2000,2000]
+                }
+            },
+            "task_weights": [1.0]
+        },
+        "Variables_of_interest": {
+            "input_node_features": [0],
+            "output_names": ["spectrum"],
+            "output_index": [0],
+            "type": ["graph"],
+            "denormalize_output": false,
+            "destandardize_input": true
+        },
+        "Training": {
+            "num_epoch": 150,
+            "perc_train": 0.95,
+            "learning_rate": 1e-3,
+            "batch_size": 64
+        }
+    },
+    "Visualization": {
+        "plot_init_solution": false,
+        "plot_hist_solution": false,
+        "create_plots": true
+    }
+}
