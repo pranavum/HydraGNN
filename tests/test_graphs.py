@@ -115,7 +115,7 @@ def unittest_train_model(model_type, ci_input, use_lengths, overwrite_data=False
 
     (
         error,
-        error_rmse_task,
+        error_mse_task,
         true_values,
         predicted_values,
     ) = hydragnn.run_prediction(config)
@@ -133,27 +133,25 @@ def unittest_train_model(model_type, ci_input, use_lengths, overwrite_data=False
         thresholds["CGCNN"] = [0.15, 0.15, 0.40]
         thresholds["PNA"] = [0.10, 0.10, 0.40]
     if use_lengths and "vector" in ci_input:
-        thresholds["PNA"] = [0.15, 0.10, 0.75]
+        thresholds["PNA"] = [0.2, 0.15, 0.85]
     verbosity = 2
 
     for ihead in range(len(true_values)):
-        error_head_rmse = error_rmse_task[ihead]
+        error_head_mse = error_mse_task[ihead]
         error_str = (
-            str("{:.6f}".format(error_head_rmse))
+            str("{:.6f}".format(error_head_mse))
             + " < "
             + str(thresholds[model_type][0])
         )
         hydragnn.utils.print_distributed(verbosity, "head: " + error_str)
         assert (
-            error_head_rmse < thresholds[model_type][0]
+            error_head_mse < thresholds[model_type][0]
         ), "Head RMSE checking failed for " + str(ihead)
 
         head_true = torch.tensor(true_values[ihead])
         head_pred = torch.tensor(predicted_values[ihead])
         # Check individual samples
         mae = torch.nn.L1Loss()
-        if head_true.shape != head_pred.shape:
-            head_pred = torch.reshape(head_pred, head_true.shape)
         sample_mean_abs_error = mae(head_true, head_pred)
         sample_max_abs_error = torch.max(torch.abs(head_true - head_pred))
         error_str = (

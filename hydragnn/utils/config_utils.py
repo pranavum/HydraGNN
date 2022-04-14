@@ -47,6 +47,14 @@ def update_config(config, train_loader, val_loader, test_loader):
 
     if "freeze_conv_layers" not in config["NeuralNetwork"]["Architecture"]:
         config["NeuralNetwork"]["Architecture"]["freeze_conv_layers"] = False
+    if "initial_bias" not in config["NeuralNetwork"]["Architecture"]:
+        config["NeuralNetwork"]["Architecture"]["initial_bias"] = None
+
+    if "optimizer" not in config["NeuralNetwork"]["Training"]:
+        config["NeuralNetwork"]["Training"]["optimizer"] = "AdamW"
+
+    if "loss_function_type" not in config["NeuralNetwork"]["Training"]:
+        config["NeuralNetwork"]["Training"]["loss_function_type"] = "mse"
 
     return config
 
