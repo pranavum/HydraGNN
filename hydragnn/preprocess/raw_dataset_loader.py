@@ -139,7 +139,8 @@ class RawDataLoader:
                     dataset[idx] = self.__charge_density_update_for_LSMS(data_object)
 
             # scaled features by number of nodes
-            dataset = self.__scale_features_by_num_nodes(dataset)
+            if self.data_format != "YQ":
+                dataset = self.__scale_features_by_num_nodes(dataset)
 
             if dataset_type == "total":
                 serial_data_name = self.raw_dataset_name + ".pkl"
@@ -359,6 +360,7 @@ class RawDataLoader:
 
             data_object.pos = tensor(node_position_matrix)
             data_object.x = tensor(node_feature_matrix)
+            data_object.x = torch.nn.functional.one_hot(data_object.x.view(-1).to(torch.int64), num_classes=118)
 
         filename_without_extension = os.path.splitext(filepath)[0]
 
