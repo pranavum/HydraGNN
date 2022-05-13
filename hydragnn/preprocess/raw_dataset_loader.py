@@ -363,6 +363,8 @@ class RawDataLoader:
             data_object.x = torch.nn.functional.one_hot(data_object.x.view(-1).to(torch.int64), num_classes=118)
 
         filename_without_extension = os.path.splitext(filepath)[0]
+        index = filename_without_extension.rsplit('/',1)[1]
+        data_object.filename_without_extension = index
 
         # output files
         if os.path.exists(filename_without_extension + "_vis_inc_0K" + ".csv") != -1:

@@ -101,7 +101,7 @@ def train_validate_test(
                 train_loader, model, optimizer, verbosity, profiler=prof
             )
         val_rmse, val_taskserr = validate(val_loader, model, verbosity)
-        test_rmse, test_taskserr, true_values, predicted_values = test(
+        test_rmse, test_taskserr, true_values, predicted_values, _ = test(
             test_loader, model, verbosity
         )
         scheduler.step(val_rmse)
@@ -139,7 +139,7 @@ def train_validate_test(
     timer.stop()
 
     # At the end of training phase, do the one test run for visualizer to get latest predictions
-    test_rmse, test_taskserr, true_values, predicted_values = test(
+    test_rmse, test_taskserr, true_values, predicted_values, filenames_without_extension = test(
         test_loader, model, verbosity
     )
 
@@ -165,8 +165,25 @@ def train_validate_test(
                 isample * model.head_dims[0] : (isample + 1) * model.head_dims[0]
             ]
         )
+        plt.title(filenames_without_extension[isample])
         plt.draw()
         plt.savefig(f"./logs/{model_with_config_name}/spectrum_" + str(isample))
+
+        #print("MASSI: ", filenames_without_extension[isample])
+
+        textfile = open(f"./logs/{model_with_config_name}/"+"true_value_"+filenames_without_extension[isample]+".txt", "w+")
+        for element in true_values[0][
+                isample * model.head_dims[0] : (isample + 1) * model.head_dims[0]
+            ]:
+            textfile.write(str(element[0]) + "\n")
+        textfile.close()
+
+        textfile = open(f"./logs/{model_with_config_name}/"+"predicted_value_"+filenames_without_extension[isample]+".txt", "w+")
+        for element in predicted_values[0][
+                isample * model.head_dims[0] : (isample + 1) * model.head_dims[0]
+            ]:
+            textfile.write(str(element[0]) + "\n")
+        textfile.close()
 
     """
     if create_plots:
@@ -294,6 +311,7 @@ def test(loader, model, verbosity):
     model.eval()
     true_values = [[] for _ in range(model.num_heads)]
     predicted_values = [[] for _ in range(model.num_heads)]
+    filenames_without_extension = []
     IImean = [i for i in range(sum(model.head_dims))]
     if model.ilossweights_nll == 1:
         IImean = [i for i in range(sum(model.head_dims) + model.num_heads)]
@@ -317,9 +335,12 @@ def test(loader, model, verbosity):
             true_values[ihead].extend(head_val.tolist())
             predicted_values[ihead].extend(head_pre.tolist())
 
+        filenames_without_extension.extend(data.filename_without_extension)
+
     return (
         total_error / num_samples_local,
         tasks_error / num_samples_local,
         true_values,
         predicted_values,
+        filenames_without_extension
     )
