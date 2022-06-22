@@ -208,6 +208,8 @@ class RawDataLoader:
 
         filename_without_extension = os.path.splitext(filepath)[0]
 
+        data_object.y = tensor([float(np.sum(c_peratom))]) 
+
         if os.path.exists(os.path.join(filename_without_extension + ".bulk")):
             filename_bulk = os.path.join(filename_without_extension + ".bulk")
             f = open(filename_bulk, "r", encoding="utf-8")
@@ -219,7 +221,7 @@ class RawDataLoader:
                 for icomp in range(self.graph_feature_dim[item]):
                     it_comp = self.graph_feature_col[item] + icomp
                     g_feature.append(float(graph_feat[it_comp].strip()))
-            data_object.y = tensor(g_feature)
+            data_object.y = torch.cat((data_object.y, tensor(g_feature)))
 
         return data_object
 
