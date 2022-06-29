@@ -22,16 +22,16 @@
     "NeuralNetwork": {
         "Architecture": {
             "model_type": "PNA",
-            "radius": 2,
+            "radius": 5.0,
             "max_neighbours": 100000,
 	    "edge_features": ["lengths"],
-	    "periodic_boundary_conditions": true,
-            "hidden_dim": 50,
+	    "periodic_boundary_conditions": false,
+            "hidden_dim": 100,
             "num_conv_layers": 10,
             "output_heads": {
                 "graph":{
                     "num_sharedlayers": 2,
-                    "dim_sharedlayers": 5,
+                    "dim_sharedlayers": 100,
                     "num_headlayers": 2,
                     "dim_headlayers": [50,25]
                 },
@@ -53,7 +53,7 @@
         "Training": {
             "optimizer": "AdamW",
             "num_epoch": 200,
-            "perc_train": 0.7,
+            "perc_train": 0.8,
             "loss_function_type": "mse",
             "learning_rate": 1e-3,
             "batch_size": 64,
