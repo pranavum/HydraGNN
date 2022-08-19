@@ -376,3 +376,50 @@ def test(loader, model, verbosity, reduce_ranks=True, return_samples=True):
                 predicted_values[ihead] = gather_tensor_ranks(predicted_values[ihead])
 
     return test_error, tasks_error, true_values, predicted_values
+
+
+
+@torch.no_grad()
+def test_per_atom(loader, model, verbosity, reduce_ranks=True, return_samples=True):
+
+    total_error = 0
+    tasks_error = torch.zeros(model.module.num_heads, device=loader.dataset[0].y.device)
+    num_samples_local = 0
+    model.eval()
+    for data in iterate_tqdm(loader, verbosity):
+        head_index = get_head_indices(model, data)
+
+        pred = model(data)
+        error, tasks_loss = model.module.loss(pred, data.y, head_index)
+        total_error += error * data.num_graphs
+        num_samples_local += data.num_graphs
+        for itask in range(len(tasks_loss)):
+            tasks_error[itask] += tasks_loss[itask] * data.num_graphs
+
+    test_error = total_error / num_samples_local
+    tasks_error = tasks_error / num_samples_local
+    true_values = [[] for _ in range(model.module.num_heads)]
+    predicted_values = [[] for _ in range(model.module.num_heads)]
+    if return_samples:
+        for data in loader:
+            head_index = get_head_indices(model, data)
+            ytrue = data.y
+            pred = model(data)
+            for ihead in range(model.module.num_heads):
+                head_pre = pred[ihead].reshape(-1, 1)
+                head_val = ytrue[head_index[ihead]]
+                true_values[ihead].append(head_val/data.pos.shape[0])
+                predicted_values[ihead].append(head_pre/data.pos.shape[0])
+        for ihead in range(model.module.num_heads):
+            predicted_values[ihead] = torch.cat(predicted_values[ihead], dim=0)
+            true_values[ihead] = torch.cat(true_values[ihead], dim=0)
+
+    if reduce_ranks:
+        test_error = reduce_values_ranks(test_error)
+        tasks_error = reduce_values_ranks(tasks_error)
+        if len(true_values[0]) > 0:
+            for ihead in range(model.module.num_heads):
+                true_values[ihead] = gather_tensor_ranks(true_values[ihead])
+                predicted_values[ihead] = gather_tensor_ranks(predicted_values[ihead])
+
+    return test_error, tasks_error, true_values, predicted_values
