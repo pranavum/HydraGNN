@@ -30,6 +30,7 @@ from hydragnn.utils.distributed import get_comm_size_and_rank
 import torch.distributed as dist
 import pickle
 
+import AADL as accelerate
 
 def train_validate_test(
     model,
@@ -47,6 +48,19 @@ def train_validate_test(
     create_plots=False,
 ):
     num_epoch = config["Training"]["num_epoch"]
+
+
+    # Parameters for Anderson acceleration
+    relaxation = 0.1
+    wait_iterations = 7000
+    history_depth = 10
+    store_each_nth = 5
+    frequency = store_each_nth
+    reg_acc = 0.0
+    safeguard = True
+    average = False
+
+    #accelerate.accelerate(optimizer, "anderson", relaxation, wait_iterations, history_depth, store_each_nth, frequency, reg_acc, average)
 
     device = train_loader.dataset[0].y.device
     # total loss tracking for train/vali/test
