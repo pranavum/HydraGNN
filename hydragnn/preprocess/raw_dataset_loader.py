@@ -17,6 +17,8 @@ import torch
 from torch_geometric.data import Data
 from torch import tensor
 
+import math
+
 from ase.io.cfg import read_cfg
 
 # WARNING: DO NOT use collective communication calls here because only rank 0 uses this routines
@@ -220,7 +222,7 @@ class RawDataLoader:
             for item in range(len(self.graph_feature_dim)):
                 for icomp in range(self.graph_feature_dim[item]):
                     it_comp = self.graph_feature_col[item] + icomp
-                    g_feature.append(float(graph_feat[it_comp].strip()))
+                    g_feature.append(math.log(float(graph_feat[it_comp].strip())))
             data_object.y = torch.cat((data_object.y, tensor(g_feature)))
 
         return data_object
