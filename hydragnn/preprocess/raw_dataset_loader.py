@@ -208,12 +208,6 @@ class RawDataLoader:
 
         filename_without_extension = os.path.splitext(filepath)[0]
 
-        if "BCC" in self.root_dir:
-            data_object.phase = "BCC"
-        elif "FCC" in self.root_dir:
-            data_object.phase = "FCC"
-        elif "HCP" in self.root_dir:
-            data_object.phase = "HCP"
 
         data_object.y = tensor([float(np.sum(c_peratom))])
 
