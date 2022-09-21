@@ -3,18 +3,18 @@
         "level": 2
     },
     "Dataset": {
-        "name": "FePt_32atoms",
-        "path": {"total": "./dataset/FePt_enthalpy"},
-        "format": "LSMS",
+        "name": "zeolite",
+        "path": {"total": "./dataset/zeolite"},
+        "format": "XYZ",
         "compositional_stratified_splitting": true,
-        "rotational_invariance": false,
+        "rotational_invariance": true,
         "node_features": {
-            "name": ["num_of_protons","charge_density", "magnetic_moment"],
-            "dim": [1,1,1],
-            "column_index": [0,5,6]
+            "name": ["num_of_protons"],
+            "dim": [1],
+            "column_index": [0]
         },
         "graph_features":{
-            "name": [ "free_energy_scaled_num_nodes"],
+            "name": [ "free_energy"],
             "dim": [1],
             "column_index": [0]
         }
@@ -24,7 +24,7 @@
             "model_type": "PNA",
             "radius": 7,
             "max_neighbours": 100,
-            "periodic_boundary_conditions": false,
+            "periodic_boundary_conditions": true,
             "hidden_dim": 5,
             "num_conv_layers": 6,
             "output_heads": {
@@ -40,13 +40,13 @@
                     "type": "mlp"
                 }
             },
-            "task_weights": [1.0, 1.0, 1.0]
+            "task_weights": [1.0]
         },
         "Variables_of_interest": {
             "input_node_features": [0],
-            "output_names": ["free_energy_scaled_num_nodes","charge_density", "magnetic_moment"],
-            "output_index": [0, 1, 2],
-            "type": ["graph","node","node"],
+            "output_names": ["free_energy"],
+            "output_index": [0],
+            "type": ["graph"],
             "denormalize_output": true
         },
         "Training": {
