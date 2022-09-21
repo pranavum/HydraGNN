@@ -19,7 +19,7 @@
             "column_index": [3]
         },
         "normalize_input": false,
-        "standardize_input": true
+        "standardize_input": false
     },
     "NeuralNetwork": {
         "Architecture": {
@@ -28,7 +28,7 @@
             "periodic_boundary_conditions": false,
             "edge_features": ["length"],
             "max_neighbours": 100000,
-            "hidden_dim": 10,
+            "hidden_dim": 100,
             "num_conv_layers": 6,
             "output_heads": {
                 "graph":{
