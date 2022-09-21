@@ -30,7 +30,7 @@ if __name__ == "__main__":
         action="store_true",
         help="preprocess only. Adios or pickle saving and no train",
     )
-    parser.add_argument("--inputfile", help="input file", type=str, default="lsms.json")
+    parser.add_argument("--inputfile", help="input file", type=str, default="zeolite.json")
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--adios",
