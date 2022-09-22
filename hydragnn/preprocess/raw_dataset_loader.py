@@ -95,11 +95,25 @@ class RawDataLoader:
         self.raw_dataset_name = config["name"]
         self.data_format = config["format"]
         self.path_dictionary = config["path"]
+        self.normalize_input = (
+            config["normalize_input"]
+            if config["normalize_input"] is not None
+            else False
+        )
+        self.standardize_input = (
+            config["standardize_input"]
+            if config["standardize_input"] is not None
+            else False
+        )
+
 
         assert len(self.node_feature_name) == len(self.node_feature_dim)
         assert len(self.node_feature_name) == len(self.node_feature_col)
         assert len(self.graph_feature_name) == len(self.graph_feature_dim)
         assert len(self.graph_feature_name) == len(self.graph_feature_col)
+
+        # only one between normalization and standardization makes sense to be used
+        assert not (self.normalize_input and self.standardize_input)
 
         self.dist = dist
         if self.dist:
@@ -166,7 +180,8 @@ class RawDataLoader:
                     dataset[idx] = self.__charge_density_update_for_LSMS(data_object)
 
             # scaled features by number of nodes
-            dataset = self.__scale_features_by_num_nodes(dataset)
+            if self.data_format != "YQ":
+                dataset = self.__scale_features_by_num_nodes(dataset)
 
             if dataset_type == "total":
                 serial_data_name = self.raw_dataset_name + ".pkl"
@@ -177,14 +192,19 @@ class RawDataLoader:
             self.dataset_list.append(dataset)
             self.serial_data_name_list.append(serial_data_name)
 
-        self.__normalize_dataset()
+        if self.normalize_input:
+            self.__normalize_dataset()
+        elif self.standardize_input:
+            self.__standardize_dataset()
+
 
         for serial_data_name, dataset_normalized in zip(
             self.serial_data_name_list, self.dataset_list
         ):
             with open(os.path.join(serialized_dir, serial_data_name), "wb") as f:
-                pickle.dump(self.minmax_node_feature, f)
-                pickle.dump(self.minmax_graph_feature, f)
+                if self.normalize_input:
+                    pickle.dump(self.minmax_node_feature, f)
+                    pickle.dump(self.minmax_graph_feature, f)
                 pickle.dump(dataset_normalized, f)
 
     def __transform_input_to_data_object_base(self, filepath):
@@ -194,6 +214,10 @@ class RawDataLoader:
             )
         elif self.data_format == "CFG":
             data_object = self.__transform_CFG_input_to_data_object_base(
+                filepath=filepath
+            )
+        elif self.data_format == "YQ":
+            data_object = self.__transform_spectroscopy_input_to_data_object_base(
                 filepath=filepath
             )
         return data_object
@@ -214,6 +238,28 @@ class RawDataLoader:
         if filepath.endswith(".cfg"):
 
             data_object = self.__transform_ASE_object_to_data_object(filepath)
+
+            return data_object
+
+        else:
+            return None
+
+    def __transform_spectroscopy_input_to_data_object_base(self, filepath):
+        """Transforms lines of strings read from the raw data CFG file to Data object and returns it.
+
+        Parameters
+        ----------
+        lines:
+          content of data file with all the graph information
+        Returns
+        ----------
+        Data
+            Data object representing structure of a graph sample.
+        """
+
+        if filepath.endswith(".xyz"):
+
+            data_object = self.__transform_YQ_object_to_data_object(filepath)
 
             return data_object
 
@@ -313,6 +359,78 @@ class RawDataLoader:
         data_object.x = tensor(node_feature_matrix)
         return data_object
 
+    def __transform_YQ_object_to_data_object(self, filepath):
+        """Transforms lines of strings read from the raw data file to Data object and returns it.
+        Parameters
+        ----------
+        lines:
+          content of data file with all the graph information
+        Returns
+        ----------
+        Data
+            Data object representing structure of a graph sample.
+        """
+
+        data_object = Data()
+
+        # input files
+        if filepath.find("xyz") != -1:
+            f = open(filepath, "r", encoding="utf-8")
+
+            node_feature_matrix = []
+            node_position_matrix = []
+
+            all_lines = f.readlines()
+
+            for line in all_lines:
+                node_feat = line.split(None, 11)
+
+                x_pos = float(node_feat[1].strip())
+                y_pos = float(node_feat[2].strip())
+                z_pos = float(node_feat[3].strip())
+                node_position_matrix.append([x_pos, y_pos, z_pos])
+
+                node_feature = []
+                node_feature_dim = [1]
+                node_feature_col = [0]
+                for item in range(len(node_feature_dim)):
+                    for icomp in range(node_feature_dim[item]):
+                        it_comp = node_feature_col[item] + icomp
+                        node_feature.append(float(node_feat[it_comp].strip()))
+                node_feature_matrix.append(node_feature)
+
+            data_object.pos = tensor(node_position_matrix)
+            data_object.x = tensor(node_feature_matrix)
+            data_object.x = torch.nn.functional.one_hot(data_object.x.view(-1).to(torch.int64), num_classes=118)
+
+        filename_without_extension = os.path.splitext(filepath)[0]
+        index = filename_without_extension.rsplit('/',1)[1]
+        data_object.filename_without_extension = index
+
+        # output files
+        if os.path.exists(filename_without_extension + "_vis_inc_0K" + ".csv") != -1:
+
+            f = open(
+                filename_without_extension + "_vis_inc_0K" + ".csv",
+                "r",
+                encoding="utf-8",
+            )
+            all_lines = f.readlines()
+
+            g_feature = []
+
+            start_line = 500
+            end_line = 1001
+
+            for line in all_lines[start_line:end_line]:
+                node_feat = line.split(",", 11)
+                g_feature.append(float(node_feat[3]))
+
+            data_object.y = tensor(g_feature)
+
+        return data_object
+
+
     def __charge_density_update_for_LSMS(self, data_object: Data):
         """Calculate charge density for LSMS format
         Parameters
@@ -355,6 +473,117 @@ class RawDataLoader:
                 )
 
         return dataset
+
+
+    def __standardize_dataset(self):
+
+        """Performs the normalization on Data objects and returns the normalized dataset."""
+        num_node_features = len(self.node_feature_dim)
+        num_graph_features = len(self.graph_feature_dim)
+
+        count_data_samples = sum([len(dataset) for dataset in self.dataset_list])
+
+        self.mean_graph_feature = []
+        self.std_graph_feature = []
+        self.mean_node_feature = []
+        self.std_node_feature = []
+
+        # Iterate over graph features and define tensors full of zeros for mean and full of ones for standard deviation
+        for ifeat in range(num_graph_features):
+            self.mean_graph_feature.append(torch.zeros(self.graph_feature_dim[ifeat]))
+            self.std_graph_feature.append(torch.zeros(self.graph_feature_dim[ifeat]))
+
+        # Iterate over node features and define tensors full of zeros
+        for ifeat in range(num_node_features):
+            self.mean_node_feature.append(torch.zeros(self.node_feature_dim[ifeat]))
+            self.std_node_feature.append(torch.zeros(self.node_feature_dim[ifeat]))
+
+        # compute the entry-wise mean for each graph-level and node-level feature
+        for dataset in self.dataset_list:
+            for data in dataset:
+                # find maximum and minimum values for graph level features
+                g_index_start = 0
+                for ifeat in range(num_graph_features):
+                    g_index_end = g_index_start + self.graph_feature_dim[ifeat]
+                    self.mean_graph_feature[ifeat] += (
+                        data.y[g_index_start:g_index_end] / count_data_samples
+                    )
+                    g_index_start = g_index_end
+
+                # find maximum and minimum values for node level features
+                n_index_start = 0
+                for ifeat in range(num_node_features):
+                    n_index_end = n_index_start + self.node_feature_dim[ifeat]
+                    self.mean_node_feature[ifeat] += (
+                        torch.mean(data.x[:, n_index_start:n_index_end], dim=0)
+                        / count_data_samples
+                    )
+                    n_index_start = n_index_end
+
+        # compute the entry-wise variance for each graph-level and node-level feature
+        for dataset in self.dataset_list:
+            for data in dataset:
+                # find maximum and minimum values for graph level features
+                g_index_start = 0
+                for ifeat in range(num_graph_features):
+                    g_index_end = g_index_start + self.graph_feature_dim[ifeat]
+                    self.std_graph_feature[ifeat] += (
+                        torch.pow(
+                            data.y[g_index_start:g_index_end]
+                            - self.mean_graph_feature[ifeat],
+                            2,
+                        )
+                        / count_data_samples
+                    )
+                    g_index_start = g_index_end
+
+                # find maximum and minimum values for node level features
+                n_index_start = 0
+                for ifeat in range(num_node_features):
+                    n_index_end = n_index_start + self.node_feature_dim[ifeat]
+                    self.std_node_feature[ifeat] += (
+                        torch.pow(
+                            torch.mean(data.x[:, n_index_start:n_index_end], dim=0)
+                            - self.mean_node_feature[ifeat],
+                            2,
+                        )
+                        / count_data_samples
+                    )
+                    n_index_start = n_index_end
+
+        # compute the entry-wise square root of the variance to obtain the standard deviation
+        for ifeat in range(num_graph_features):
+            self.std_graph_feature[ifeat] = torch.sqrt(self.std_graph_feature[ifeat])
+
+        for ifeat in range(num_node_features):
+            self.std_node_feature[ifeat] = torch.sqrt(self.std_node_feature[ifeat])
+
+        # standardize the data
+        for dataset in self.dataset_list:
+            for data in dataset:
+                g_index_start = 0
+                for ifeat in range(num_graph_features):
+                    g_index_end = g_index_start + self.graph_feature_dim[ifeat]
+                    data.y[g_index_start:g_index_end] = tensor_divide(
+                        (
+                            data.y[g_index_start:g_index_end]
+                            - self.mean_graph_feature[ifeat]
+                        ),
+                        (self.std_graph_feature[ifeat]),
+                    )
+                    g_index_start = g_index_end
+                n_index_start = 0
+                for ifeat in range(num_node_features):
+                    n_index_end = n_index_start + self.node_feature_dim[ifeat]
+                    data.x[:, n_index_start:n_index_end] = tensor_divide(
+                        (
+                            data.x[:, n_index_start:n_index_end]
+                            - self.mean_node_feature[ifeat]
+                        ),
+                        (self.std_node_feature[ifeat]),
+                    )
+                    n_index_start = n_index_end
+
 
     def __normalize_dataset(self):
 
