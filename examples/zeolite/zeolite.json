@@ -4,7 +4,7 @@
     },
     "Dataset": {
         "name": "zeolite",
-        "path": {"total": "./dataset/zeolite"},
+        "path": {"train": "./dataset/serialized_dataset/zeolite_0_train.pkl", "validate": "./dataset/serialized_dataset/zeolite_0_validate.pkl", "test": "./dataset/serialized_dataset/zeolite_0_test.pkl"},
         "format": "XYZ",
         "compositional_stratified_splitting": true,
         "rotational_invariance": true,
@@ -24,13 +24,13 @@
             "model_type": "PNA",
             "radius": 7,
             "max_neighbours": 100,
-            "periodic_boundary_conditions": true,
-            "hidden_dim": 5,
+            "periodic_boundary_conditions": false,
+            "hidden_dim": 100,
             "num_conv_layers": 6,
             "output_heads": {
                 "graph":{
                     "num_sharedlayers": 2,
-                    "dim_sharedlayers": 5,
+                    "dim_sharedlayers": 100,
                     "num_headlayers": 2,
                     "dim_headlayers": [50,25]
                 },
@@ -51,8 +51,8 @@
         },
         "Training": {
             "optimizer": "AdamW",
-            "num_epoch": 2,
-            "perc_train": 0.7,
+            "num_epoch": 60,
+            "perc_train": 0.8,
             "loss_function_type": "mse",
             "learning_rate": 1e-3,
             "batch_size": 64,

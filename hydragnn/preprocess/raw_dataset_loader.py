@@ -311,8 +311,7 @@ class RawDataLoader:
         filename_energy = os.path.join(filename_without_extension + "_energy.txt")
         f = open(filename_energy, "r", encoding="utf-8")
         lines = f.readlines()
-        #graph_feat = lines[0].split(None, 2)
-        graph_feat = lines[0][41:]
+        graph_feat = lines[0].split(None, 2)
         g_feature = []
         # collect graph features
         for item in range(len(self.graph_feature_dim)):
