@@ -22,11 +22,7 @@
     "NeuralNetwork": {
         "Architecture": {
             "model_type": "PNA",
-<<<<<<< HEAD
-            "radius": 3.0,
-=======
             "radius": 12.0,
->>>>>>> fba13afe6ac05239d2582f0412af792afb266a64
             "max_neighbours": 100,
             "periodic_boundary_conditions": false,
             "hidden_dim": 100,
