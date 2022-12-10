@@ -13,6 +13,20 @@ from hydragnn.utils.model import print_model
 import torch
 import torch.distributed as dist
 
+def check_retainable_connections(data, edge_index):
+    # C-C remove, Si-Si remove, Si-O remove O-O remove.
+    assert edge_index < data.edge_index.shape[1], "Edge index exceeds total number of edges available"
+
+    if ( data.edge_index[0,edge_index] == 0.0 and data.edge_index[1,edge_index] != 0.0 ) or ( data.edge_index[1,edge_index] == 0.0 and data.edge_index[0,edge_index] != 0.0 ):
+        return True
+    else:
+        return False
+
+def remove_edges(data):
+    edges_to_retain = [ check_retainable_connections(data, index) for index in range(0,data.edge_index.shape[1]) ]
+    data.edge_index = data.edge_index[:,edges_to_retain]
+    data.edge_attr = data.edge_attr[edges_to_retain,:]
+    return data
 
 def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
@@ -151,6 +165,15 @@ if __name__ == "__main__":
         "trainset,valset,testset size: %d %d %d"
         % (len(trainset), len(valset), len(testset))
     )
+
+    for train_index in range(0, len(trainset)):
+        trainset[train_index] = remove_edges(trainset[train_index])
+
+    for val_index in range(0, len(valset)):
+        valset[train_index] = remove_edges(valset[val_index])
+
+    for test_index in range(0, len(testset)):
+        testset[train_index] = remove_edges(valset[test_index])
 
     (train_loader, val_loader, test_loader,) = hydragnn.preprocess.create_dataloaders(
         trainset, valset, testset, config["NeuralNetwork"]["Training"]["batch_size"]

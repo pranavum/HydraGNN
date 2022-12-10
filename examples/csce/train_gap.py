@@ -14,14 +14,18 @@ import time
 import hydragnn
 from hydragnn.utils.print_utils import print_distributed, iterate_tqdm
 from hydragnn.utils.time_utils import Timer
-from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset, SimplePickleDataset
+from hydragnn.utils.pickledataset import SimplePickleDataset
 from hydragnn.utils.smiles_utils import (
     get_node_attribute_name,
-    generate_graphdata,
+    generate_graphdata_from_smilestr,
 )
 
 import numpy as np
-import adios2 as ad2
+
+try:
+    from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
+except ImportError:
+    pass
 
 import torch_geometric.data
 import torch
@@ -135,7 +139,9 @@ class CSCEDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         smilestr = self.smileset[idx]
         ytarget = self.valueset[idx]
-        data = generate_graphdata(smilestr, ytarget, csce_node_types, self.var_config)
+        data = generate_graphdata_from_smilestr(
+            smilestr, ytarget, csce_node_types, self.var_config
+        )
         return data
 
 
@@ -173,7 +179,7 @@ if __name__ == "__main__":
 
     graph_feature_names = ["GAP"]
     graph_feature_dim = [1]
-    dirpwd = os.path.dirname(__file__)
+    dirpwd = os.path.dirname(os.path.abspath(__file__))
     datafile = os.path.join(dirpwd, "dataset/csce_gap_synth.csv")
     ##################################################################################################################
     inputfilesubstr = args.inputfilesubstr
@@ -251,7 +257,7 @@ if __name__ == "__main__":
             for i, (smilestr, ytarget) in iterate_tqdm(
                 enumerate(zip(_smileset, _valueset)), verbosity, total=len(_smileset)
             ):
-                data = generate_graphdata(
+                data = generate_graphdata_from_smilestr(
                     smilestr, ytarget, csce_node_types, var_config
                 )
                 dataset_lists[idataset].append(data)
@@ -337,7 +343,7 @@ if __name__ == "__main__":
     )
     model = hydragnn.utils.get_distributed_model(model, verbosity)
 
-    learning_rate = config["NeuralNetwork"]["Training"]["learning_rate"]
+    learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001
@@ -360,7 +366,7 @@ if __name__ == "__main__":
         config["NeuralNetwork"],
         log_name,
         verbosity,
-        create_plots=True,
+        create_plots=False,
     )
 
     hydragnn.utils.save_model(model, optimizer, log_name)

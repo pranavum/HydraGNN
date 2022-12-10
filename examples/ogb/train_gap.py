@@ -14,15 +14,19 @@ import time
 import hydragnn
 from hydragnn.utils.print_utils import print_distributed, iterate_tqdm
 from hydragnn.utils.time_utils import Timer
-from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset, SimplePickleDataset
+from hydragnn.utils.pickledataset import SimplePickleDataset
 from hydragnn.utils.model import print_model
 from hydragnn.utils.smiles_utils import (
     get_node_attribute_name,
-    generate_graphdata,
+    generate_graphdata_from_smilestr,
 )
 
 import numpy as np
-import adios2 as ad2
+
+try:
+    from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
+except ImportError:
+    pass
 
 import torch_geometric.data
 import torch
@@ -151,7 +155,12 @@ class OGBRawDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         smilestr = self.smileset[idx]
         ytarget = self.valueset[idx]
-        data = generate_graphdata(smilestr, ytarget, ogb_node_types, self.var_config)
+        data = generate_graphdata_from_smilestr(
+            smilestr,
+            ytarget,
+            ogb_node_types,
+            self.var_config,
+        )
         return data
 
 
@@ -190,7 +199,7 @@ if __name__ == "__main__":
 
     graph_feature_names = ["GAP"]
     graph_feature_dim = [1]
-    dirpwd = os.path.dirname(__file__)
+    dirpwd = os.path.dirname(os.path.abspath(__file__))
     datafile = os.path.join(dirpwd, "dataset/pcqm4m_gap.csv")
     ##################################################################################################################
     inputfilesubstr = args.inputfilesubstr
@@ -253,22 +262,29 @@ if __name__ == "__main__":
 
             setname = ["trainset", "valset", "testset"]
             if args.format == "pickle":
+                dirname = "examples/ogb/dataset/pickle"
                 if rank == 0:
-                    with open(
-                        "examples/ogb/dataset/pickle/%s.meta" % (setname[idataset]), "w"
-                    ) as f:
+                    if not os.path.exists(dirname):
+                        os.makedirs(dirname)
+                    with open("%s/%s.meta" % (dirname, setname[idataset]), "w") as f:
                         f.write(str(len(smileset)))
 
             for i, (smilestr, ytarget) in iterate_tqdm(
                 enumerate(zip(_smileset, _valueset)), verbosity, total=len(_smileset)
             ):
-                data = generate_graphdata(smilestr, ytarget, ogb_node_types, var_config)
+                data = generate_graphdata_from_smilestr(
+                    smilestr,
+                    ytarget,
+                    ogb_node_types,
+                    var_config,
+                )
                 dataset_lists[idataset].append(data)
 
                 ## (2022/07) This is for testing to compare with Adios
                 ## pickle write
                 if args.format == "pickle":
-                    fname = "examples/ogb/dataset/pickle/ogb_gap-%s-%d.pk" % (
+                    fname = "%s/ogb_gap-%s-%d.pk" % (
+                        dirname,
                         setname[idataset],
                         rx.start + i,
                     )
@@ -310,13 +326,10 @@ if __name__ == "__main__":
         valset = OGBRawDataset(fact, "valset")
         testset = OGBRawDataset(fact, "testset")
     elif args.format == "pickle":
-        trainset = SimplePickleDataset(
-            "examples/ogb/dataset/pickle", "ogb_gap", "trainset"
-        )
-        valset = SimplePickleDataset("examples/ogb/dataset/pickle", "ogb_gap", "valset")
-        testset = SimplePickleDataset(
-            "examples/ogb/dataset/pickle", "ogb_gap", "testset"
-        )
+        dirname = "examples/ogb/dataset/pickle"
+        trainset = SimplePickleDataset(dirname, "ogb_gap", "trainset")
+        valset = SimplePickleDataset(dirname, "ogb_gap", "valset")
+        testset = SimplePickleDataset(dirname, "ogb_gap", "testset")
     else:
         raise NotImplementedError("No supported format: %s" % (args.format))
 
@@ -343,7 +356,7 @@ if __name__ == "__main__":
         print_model(model)
     dist.barrier()
 
-    learning_rate = config["NeuralNetwork"]["Training"]["learning_rate"]
+    learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001
@@ -366,7 +379,7 @@ if __name__ == "__main__":
         config["NeuralNetwork"],
         log_name,
         verbosity,
-        create_plots=True,
+        create_plots=False,
     )
 
     hydragnn.utils.save_model(model, optimizer, log_name)

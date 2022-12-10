@@ -16,10 +16,13 @@ from hydragnn.utils.config_utils import get_log_name_config
 from hydragnn.preprocess.load_data import dataset_loading_and_splitting
 from hydragnn.preprocess.raw_dataset_loader import RawDataLoader
 from hydragnn.utils.model import print_model
-from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
 
 import numpy as np
-import adios2 as ad2
+
+try:
+    from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
+except ImportError:
+    pass
 
 import torch_geometric.data
 import torch
@@ -132,7 +135,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    dirpwd = os.path.dirname(__file__)
+    dirpwd = os.path.dirname(os.path.abspath(__file__))
     input_filename = os.path.join(dirpwd, "ising_model.json")
     with open(input_filename, "r") as f:
         config = json.load(f)
@@ -265,7 +268,7 @@ if __name__ == "__main__":
 
     model = hydragnn.utils.get_distributed_model(model, verbosity)
 
-    learning_rate = config["NeuralNetwork"]["Training"]["learning_rate"]
+    learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001

@@ -36,7 +36,7 @@ except:
 num_samples = 1000
 
 # Configurable run choices (JSON file that accompanies this example script).
-filename = os.path.join(os.path.dirname(__file__), "qm9.json")
+filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qm9.json")
 with open(filename, "r") as f:
     config = json.load(f)
 verbosity = config["Verbosity"]["level"]
@@ -71,7 +71,7 @@ model = hydragnn.models.create_model_config(
 )
 model = hydragnn.utils.get_distributed_model(model, verbosity)
 
-learning_rate = config["NeuralNetwork"]["Training"]["learning_rate"]
+learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001
