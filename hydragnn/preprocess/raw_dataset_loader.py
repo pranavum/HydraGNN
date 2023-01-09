@@ -141,7 +141,7 @@ class RawDataLoader:
                 filelist = list(nsplit(filelist, self.world_size))[self.rank]
                 log("local filelist", len(filelist))
 
-            for name in filelist:
+            for name in iterate_tqdm(filelist, verbosity_level=2):
                 if name == ".DS_Store":
                     continue
                 # if the directory contains file, iterate over them
@@ -296,7 +296,7 @@ class RawDataLoader:
         # FIXME:
         #  this still assumes bulk modulus is specific to the XYZ format.
 
-        ase_object = read(filepath)
+        ase_object = read(filepath, parallel=False)
 
         data_object = Data()
 

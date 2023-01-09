@@ -42,6 +42,7 @@ import queue
 import time
 import sys
 import re
+import numpy as np
 
 
 def parse_omp_places(envstr):
@@ -116,7 +117,7 @@ class HydraDataLoader(DataLoader):
 
     @staticmethod
     def worker_init(counter):
-        core_width = 2
+        core_width = 1
         if os.getenv("HYDRAGNN_AFFINITY_WIDTH") is not None:
             core_width = int(os.environ["HYDRAGNN_AFFINITY_WIDTH"])
 
@@ -136,6 +137,7 @@ class HydraDataLoader(DataLoader):
             else:
                 affinity = list(os.sched_getaffinity(0))
 
+            """
             affinity_mask = set(
                 affinity[
                     core_width * wid
@@ -143,6 +145,9 @@ class HydraDataLoader(DataLoader):
                     + core_offset
                 ]
             )
+            """
+            affinity_mask = np.random.choice(affinity, 1).tolist()
+            log ("affinity_mask:", affinity, affinity_mask, hasattr(os, "sched_setaffinity"))
             os.sched_setaffinity(0, affinity_mask)
             affinity = os.sched_getaffinity(0)
 

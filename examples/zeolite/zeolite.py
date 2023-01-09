@@ -3,27 +3,39 @@ import logging
 import sys
 from mpi4py import MPI
 import argparse
+import time
 
 import hydragnn
 from hydragnn.utils.time_utils import Timer
 from hydragnn.utils.config_utils import get_log_name_config
 from hydragnn.preprocess.raw_dataset_loader import RawDataLoader
 from hydragnn.utils.model import print_model
+from hydragnn.utils.print_utils import iterate_tqdm, log
 
 import torch
 import torch.distributed as dist
+
+def flatten(l):
+    return [item for sublist in l for item in sublist]
 
 def check_retainable_connections(data, edge_index):
     # C-C remove, Si-Si remove, Si-O remove O-O remove.
     assert edge_index < data.edge_index.shape[1], "Edge index exceeds total number of edges available"
 
-    if ( data.edge_index[0,edge_index] == 0.0 and data.edge_index[1,edge_index] != 0.0 ) or ( data.edge_index[1,edge_index] == 0.0 and data.edge_index[0,edge_index] != 0.0 ):
+    if ( data.edge_index[0,edge_index] == 0 and data.edge_index[1,edge_index] != 0 ) or \
+       ( data.edge_index[1,edge_index] == 0 and data.edge_index[0,edge_index] != 0 ):
         return True
     else:
         return False
 
 def remove_edges(data):
-    edges_to_retain = [ check_retainable_connections(data, index) for index in range(0,data.edge_index.shape[1]) ]
+    ## (2023/1) jyc: Iterating with index is slow. Generating mask is faster
+    # edges_to_retain = [ check_retainable_connections(data, index) for index in range(0,data.edge_index.shape[1]) ]
+    idx = torch.where(data.x == 0.0)[0] ## node index for "C"
+    edges_to_retain = torch.any(data.edge_index == idx[0], dim=0)
+    if len(idx) > 1: ## in case if there are multiple "C"s
+        for i in range(1, len(idx)):
+            edges_to_retain = torch.logical_or(edges_to_retain, torch.any(data.edge_index == idx[i], dim=0))
     data.edge_index = data.edge_index[:,edges_to_retain]
     data.edge_attr = data.edge_attr[edges_to_retain,:]
     return data
@@ -100,14 +112,19 @@ if __name__ == "__main__":
         ## Read total pkl and split (no graph object conversion)
         hydragnn.preprocess.total_to_train_val_test_pkls(config, isdist=True)
 
-        ## Read each pkl and graph object conversion with max-edge normalization
-        (
-            trainset,
-            valset,
-            testset,
-        ) = hydragnn.preprocess.load_data.load_train_val_test_sets(config, isdist=True)
-
         if args.format == "adios":
+            ## Read each pkl and graph object conversion with max-edge normalization
+            (
+                trainset,
+                valset,
+                testset,
+            ) = hydragnn.preprocess.load_data.load_train_val_test_sets(config, isdist=True)
+
+            ## remove edges
+            for dataset in [trainset, valset, testset]:
+                for data in iterate_tqdm(dataset, verbosity_level=2, desc="Remove edges"):
+                    remove_edges(data)
+
             from hydragnn.utils.adiosdataset import AdiosWriter
 
             adwriter = AdiosWriter(fname_adios, comm)
@@ -148,16 +165,25 @@ if __name__ == "__main__":
             valset,
             testset,
         ) = hydragnn.preprocess.load_data.load_train_val_test_sets(config, isdist=True)
-        # FIXME: here is a navie implementation with allgather. Need to have better/faster implementation
-        trainlist = [None for _ in range(dist.get_world_size())]
-        vallist = [None for _ in range(dist.get_world_size())]
-        testlist = [None for _ in range(dist.get_world_size())]
-        dist.all_gather_object(trainlist, trainset)
-        dist.all_gather_object(vallist, valset)
-        dist.all_gather_object(testlist, testset)
-        trainset = [item for sublist in trainlist for item in sublist]
-        valset = [item for sublist in vallist for item in sublist]
-        testset = [item for sublist in testlist for item in sublist]
+
+        ## Remove edes. It is better to call before gathering since it reduces the size.
+        info("Remove edges")
+        for dataset in [trainset, valset, testset]:
+            for data in dataset:
+                remove_edges(data)
+
+        # FIXME: Use MPI to gather data. This is no good either. It can be a problem if data size is larger than MPI capacity.
+        info("Gather dataset")
+        t0 = time.time()
+        comm = MPI.COMM_WORLD
+        trainset_all = comm.allgather(trainset)
+        valset_all = comm.allgather(valset)
+        testset_all = comm.allgather(testset)
+        trainset = flatten(trainset_all)
+        valset = flatten(valset_all)
+        testset = flatten(testset_all)
+        t1 = time.time()
+        log ("Time:", t1-t0)
     else:
         raise ValueError("Unknown data format: %d" % args.format)
 
@@ -165,15 +191,6 @@ if __name__ == "__main__":
         "trainset,valset,testset size: %d %d %d"
         % (len(trainset), len(valset), len(testset))
     )
-
-    for train_index in range(0, len(trainset)):
-        trainset[train_index] = remove_edges(trainset[train_index])
-
-    for val_index in range(0, len(valset)):
-        valset[train_index] = remove_edges(valset[val_index])
-
-    for test_index in range(0, len(testset)):
-        testset[train_index] = remove_edges(valset[test_index])
 
     (train_loader, val_loader, test_loader,) = hydragnn.preprocess.create_dataloaders(
         trainset, valset, testset, config["NeuralNetwork"]["Training"]["batch_size"]
@@ -195,7 +212,7 @@ if __name__ == "__main__":
 
     model = hydragnn.utils.get_distributed_model(model, verbosity)
 
-    learning_rate = config["NeuralNetwork"]["Training"]["learning_rate"]
+    learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001
@@ -227,3 +244,4 @@ if __name__ == "__main__":
     hydragnn.utils.print_timers(verbosity)
 
     sys.exit(0)
+
