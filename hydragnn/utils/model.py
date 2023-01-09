@@ -98,7 +98,6 @@ def calculate_PNA_degree(dataset: [Data], max_neighbours):
 
 def calculate_PNA_degree_dist(loader, max_neighbours):
     assert dist.is_initialized()
-    print ("max_neighbours", max_neighbours)
     deg = torch.zeros(max_neighbours + 1, dtype=torch.long)
     for data in iterate_tqdm(loader, 2, desc="Calculate PNA degree"):
         d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)

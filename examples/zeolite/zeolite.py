@@ -22,8 +22,7 @@ def check_retainable_connections(data, edge_index):
     # C-C remove, Si-Si remove, Si-O remove O-O remove.
     assert edge_index < data.edge_index.shape[1], "Edge index exceeds total number of edges available"
 
-    if ( data.edge_index[0,edge_index] == 0 and data.edge_index[1,edge_index] != 0 ) or \
-       ( data.edge_index[1,edge_index] == 0 and data.edge_index[0,edge_index] != 0 ):
+    if ( data.edge_index[0,edge_index] == 0.0 and data.edge_index[1,edge_index] != 0.0 ) or ( data.edge_index[1,edge_index] == 0.0 and data.edge_index[0,edge_index] != 0.0 ):
         return True
     else:
         return False
