@@ -1,0 +1,65 @@
+{
+    "Verbosity": {
+        "level": 2
+    },
+    "Dataset": {
+        "name": "YQ",
+        "path": {"total": "./YQ_qm8"},
+        "format": "YQ",
+        "compositional_stratified_splitting": false,
+        "rotational_invariance": true,
+        "node_features": {
+            "name": ["num_of_protons"],
+            "dim": [1],
+            "column_index": [0]
+        },
+        "graph_features": {
+            "dim": [501, 501]
+        },
+        "normalize_input": false,
+        "standardize_input": false
+    },
+    "NeuralNetwork": {
+        "Architecture": {
+            "model_type": "PNA",
+            "radius": 5,
+            "periodic_boundary_conditions": false,
+            "edge_features": ["single_bond", "double_bond", "triple_bond", "aromatic_bond"],
+            "max_neighbours": 100000,
+            "hidden_dim": 100,
+            "num_conv_layers": 6,
+            "output_heads": {
+                "graph":{
+                    "num_sharedlayers": 3,
+                    "dim_sharedlayers": 1000,
+                    "num_headlayers": 2,
+                    "dim_headlayers": [2000,2000]
+                }
+            },
+            "task_weights": [1.0, 1.0]
+        },
+        "Variables_of_interest": {
+            "input_node_features": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            "output_names": ["LQ_spectrum", "HQ_spectrum"],
+            "output_index": [0, 1],
+            "type": ["graph", "graph"],
+            "denormalize_output": false,
+            "destandardize_input": false
+        },
+        "Training": {
+            "num_epoch": 2,
+            "perc_train": 0.95,
+            "loss_function_type": "mse",
+            "batch_size": 64,
+            "Optimizer": {
+                "type": "AdamW",
+                "learning_rate": 1e-3
+            }
+        }
+    },
+    "Visualization": {
+        "plot_init_solution": false,
+        "plot_hist_solution": false,
+        "create_plots": true
+    }
+}
