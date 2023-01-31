@@ -14,6 +14,7 @@ import time
 from rdkit.Chem.rdmolfiles import MolFromPDBFile
 
 import hydragnn
+from hydragnn.utils.distributed import get_device
 from hydragnn.utils.print_utils import print_distributed, iterate_tqdm
 from hydragnn.utils.time_utils import Timer
 #from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
@@ -402,21 +403,21 @@ if __name__ == "__main__":
             for data_index in range(0, num_samples):
 
                 data_sample = loader.dataset[data_index]
-                pred = model.module(data_sample)
+                pred = model.module(data_sample.to(get_device()))
 
                 fig, ax = plt.subplots()
 
                 true_value = []
                 if data_sample.source == "LQ":
-                    true_value = data_sample.y[0:graph_feature_dim[0]]
+                    true_value = data_sample.y[0:graph_feature_dim[0]].cpu()
                     ax.plot(true_value, color="blue", linestyle='solid')
                 elif data_sample.source == "HQ":
-                    true_value = data_sample.y[graph_feature_dim[0]:]
+                    true_value = data_sample.y[graph_feature_dim[0]:].cpu()
                     ax.plot(true_value, color="red", linestyle='solid')
 
                 head_index = 0
                 for ihead in range(0,2):
-                    pred_head = pred[head_index].detach()
+                    pred_head = pred[head_index].detach().cpu()
                     ax.plot(pred_head.t(), color=colors[ihead], linestyle='dashed')
 
                 plt.ylim([-0.2, max(true_value) + 0.2])
