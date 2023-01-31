@@ -15,6 +15,7 @@ from .model import (
     load_existing_model,
     load_existing_model_config,
     loss_function_selection,
+    CompetitionGatedLoss
 )
 from .time_utils import Timer, print_timers
 from .config_utils import (

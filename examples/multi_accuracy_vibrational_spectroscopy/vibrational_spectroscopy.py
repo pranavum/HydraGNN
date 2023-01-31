@@ -374,7 +374,7 @@ if __name__ == "__main__":
 
     ##################################################################################################################
 
-    hydragnn.train.train_validate_test(
+    hydragnn.train.train_validate_test_multifidelity(
         model,
         optimizer,
         train_loader,

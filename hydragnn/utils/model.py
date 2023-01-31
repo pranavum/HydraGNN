@@ -25,6 +25,8 @@ from hydragnn.utils.distributed import (
 )
 from collections import OrderedDict
 
+def flatten(l):
+    return [item for sublist in l for item in sublist]
 
 def loss_function_selection(loss_function_string: str):
     if loss_function_string == "mse":
@@ -35,6 +37,28 @@ def loss_function_selection(loss_function_string: str):
         return torch.nn.SmoothL1Loss
     elif loss_function_string == "rmse":
         return lambda x, y: torch.sqrt(torch.nn.functional.mse_loss(x, y))
+
+
+class CompetitionGatedLoss(torch.nn.Module):
+    def __init__(self):
+        super(CompetitionGatedLoss, self).__init__()
+        self.loss = torch.nn.functional.mse_loss
+    def forward(self, data_source, data_source_indices, y, pred, head_index):
+
+        source1 = [index for index in range(0, len(data_source)) if data_source[index] == 'LQ']
+        source2 = [index for index in range(0, len(data_source)) if data_source[index] == 'HQ']
+
+        flatten_data_source_indices = flatten(data_source_indices)
+        flatten_source1 = [index for index in range(0, len(flatten_data_source_indices)) if
+                           flatten_data_source_indices[index] == 'LQ']
+        flatten_source2 = [index for index in range(0, len(flatten_data_source_indices)) if
+                           flatten_data_source_indices[index] == 'HQ']
+
+        loss_source1 = self.loss(pred[head_index[0]][flatten_source1].reshape(y[0][source1].shape), y[0][source1])
+        loss_source2 = self.loss(pred[head_index[1]][flatten_source2].reshape(y[1][source2].shape), y[1][source2])
+
+        return loss_source1 + loss_source2, [loss_source1, loss_source2]
+
 
 
 def save_model(model, optimizer, name, path="./logs/"):

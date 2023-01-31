@@ -1,1 +1,2 @@
 from .train_validate_test import train_validate_test, train, validate, test
+from .train_validate_test_multifidelity import train_validate_test_multifidelity, train_multifidelity, validate_multifidelity, test_multifidelity
