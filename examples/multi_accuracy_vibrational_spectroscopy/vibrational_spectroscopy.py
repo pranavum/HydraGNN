@@ -17,7 +17,8 @@ import hydragnn
 from hydragnn.utils.distributed import get_device
 from hydragnn.utils.print_utils import print_distributed, iterate_tqdm
 from hydragnn.utils.time_utils import Timer
-#from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
+
+# from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
 from hydragnn.utils.pickledataset import SimplePickleDataset
 from hydragnn.utils.smiles_utils import (
     get_node_attribute_name,
@@ -25,7 +26,8 @@ from hydragnn.utils.smiles_utils import (
 )
 
 import numpy as np
-#import adios2 as ad2
+
+# import adios2 as ad2
 
 import torch_geometric.data
 import torch
@@ -69,20 +71,27 @@ def datasets_load(list_dirpaths, sampling=None, seed=None, frac=[0.9, 0.05, 0.05
                     source_label = "LQ"
 
                 # check that the spectrum has been calculated. Otherwise, ingore the molecule case
-                spectrum_filename_list = [f for f in os.listdir(dirpath + '/' + dir + '/') if
-                                 f.endswith('.csv')]
+                spectrum_filename_list = [
+                    f
+                    for f in os.listdir(dirpath + "/" + dir + "/")
+                    if f.endswith(".csv")
+                ]
 
                 if len(spectrum_filename_list) == 0:
                     continue
 
-                smilestr_files_list = [f for f in os.listdir(dirpath + '/' + dir + '/') if f.endswith('.dat')]
+                smilestr_files_list = [
+                    f
+                    for f in os.listdir(dirpath + "/" + dir + "/")
+                    if f.endswith(".dat")
+                ]
 
                 if len(smilestr_files_list) == 0:
                     continue
 
                 # collect information about molecular structure and chemical composition
                 try:
-                    smilestr_file = dirpath + '/' + dir + '/' + smilestr_files_list[0]
+                    smilestr_file = dirpath + "/" + dir + "/" + smilestr_files_list[0]
                     with open(smilestr_file) as f:
                         first_line = f.readlines()[0]
                         smilestr = first_line.strip()
@@ -92,16 +101,32 @@ def datasets_load(list_dirpaths, sampling=None, seed=None, frac=[0.9, 0.05, 0.05
                     sys.exit(1)
 
                 try:
-                    assert len(spectrum_filename_list) > 0, "spectrum file missing from directory: " + dirpath + '/' + dir + '/'
-                    assert len(spectrum_filename_list) < 2, "too many spectrum files within directory: " + dirpath + '/' + dir + '/'
-                    spectrum_filename = dirpath + '/' + dir + '/' + spectrum_filename_list[0]
+                    assert len(spectrum_filename_list) > 0, (
+                        "spectrum file missing from directory: "
+                        + dirpath
+                        + "/"
+                        + dir
+                        + "/"
+                    )
+                    assert len(spectrum_filename_list) < 2, (
+                        "too many spectrum files within directory: "
+                        + dirpath
+                        + "/"
+                        + dir
+                        + "/"
+                    )
+                    spectrum_filename = (
+                        dirpath + "/" + dir + "/" + spectrum_filename_list[0]
+                    )
                     spectrum_energies = list()
                     with open(spectrum_filename, "r") as input_file:
                         count_line = 0
                         for line in input_file:
-                            if 500<=count_line<=1000:
-                                spectrum_energies.append(float(line.strip().split(',')[1]))
-                            elif count_line>505:
+                            if 500 <= count_line <= 1000:
+                                spectrum_energies.append(
+                                    float(line.strip().split(",")[1])
+                                )
+                            elif count_line > 505:
                                 break
                             count_line = count_line + 1
 
@@ -119,7 +144,7 @@ def datasets_load(list_dirpaths, sampling=None, seed=None, frac=[0.9, 0.05, 0.05
                 smiles_all.append(smilestr)
                 values_all.append(spectrum_energies)
                 source_labels_all.append(source_label)
-                source_labels_indices_all.append([source_label]*501)
+                source_labels_indices_all.append([source_label] * 501)
 
     print("Total:", len(smiles_all))
 
@@ -171,7 +196,7 @@ def datasets_load(list_dirpaths, sampling=None, seed=None, frac=[0.9, 0.05, 0.05
         [trainsmiles, valsmiles, testsmiles],
         [torch.tensor(trainset), torch.tensor(valset), torch.tensor(testset)],
         [trainlabels, vallabels, testlabels],
-        [trainlabels_indices, vallabels_indices, testlabels_indices]
+        [trainlabels_indices, vallabels_indices, testlabels_indices],
     )
 
 
@@ -252,22 +277,40 @@ if __name__ == "__main__":
             values_sets,
             source_label_sets,
             source_label_indices_sets,
-        ) = datasets_load([datadir_low_accuracy, datadir_high_accuracy], sampling=args.sampling, seed=43)
+        ) = datasets_load(
+            [datadir_low_accuracy, datadir_high_accuracy],
+            sampling=args.sampling,
+            seed=43,
+        )
 
         os.makedirs("dataset/pickle/", exist_ok=True)
 
         info([len(x) for x in values_sets])
         dataset_lists = [[] for dataset in values_sets]
-        for idataset, (dataIDset, smilestrset, valueset, sourceset, source_indices_set) in enumerate(zip(dataIDs_sets, smilestr_sets, values_sets, source_label_sets, source_label_indices_sets)):
+        for idataset, (
+            dataIDset,
+            smilestrset,
+            valueset,
+            sourceset,
+            source_indices_set,
+        ) in enumerate(
+            zip(
+                dataIDs_sets,
+                smilestr_sets,
+                values_sets,
+                source_label_sets,
+                source_label_indices_sets,
+            )
+        ):
 
             rx = list(nsplit(range(len(smilestrset)), comm_size))[rank]
             info("subset range:", idataset, len(smilestrset), rx.start, rx.stop)
             ## local portion
-            _dataIDset = dataIDset[rx.start: rx.stop]
+            _dataIDset = dataIDset[rx.start : rx.stop]
             _smilestrset = smilestrset[rx.start : rx.stop]
             _valueset = valueset[rx.start : rx.stop]
-            _sourceset = sourceset[rx.start: rx.stop]
-            _sourceset_indices = source_indices_set[rx.start: rx.stop]
+            _sourceset = sourceset[rx.start : rx.stop]
+            _sourceset_indices = source_indices_set[rx.start : rx.stop]
             info("local molecule set size:", len(_smilestrset))
 
             setname = ["trainset", "valset", "testset"]
@@ -280,7 +323,17 @@ if __name__ == "__main__":
                         f.write(str(len(smilestrset)))
 
             for i, (dataID, smilestr, ytarget, source, source_indices) in iterate_tqdm(
-                enumerate(zip(_dataIDset, _smilestrset, _valueset, _sourceset, _sourceset_indices)), verbosity, total=len(_smilestrset)
+                enumerate(
+                    zip(
+                        _dataIDset,
+                        _smilestrset,
+                        _valueset,
+                        _sourceset,
+                        _sourceset_indices,
+                    )
+                ),
+                verbosity,
+                total=len(_smilestrset),
             ):
                 data = generate_graphdata_from_smilestr(
                     smilestr, ytarget, atom_types, var_config
@@ -330,9 +383,7 @@ if __name__ == "__main__":
         trainset = SimplePickleDataset(
             "dataset/pickle", "vibrational_spectrum", "trainset"
         )
-        valset = SimplePickleDataset(
-            "dataset/pickle", "vibrational_spectrum", "valset"
-        )
+        valset = SimplePickleDataset("dataset/pickle", "vibrational_spectrum", "valset")
         testset = SimplePickleDataset(
             "dataset/pickle", "vibrational_spectrum", "testset"
         )
@@ -393,9 +444,7 @@ if __name__ == "__main__":
 
     if args.mae and rank == 0:
         ##################################################################################################################
-        for isub, (loader, setname) in enumerate(
-            zip([test_loader], ["test"])
-        ):
+        for isub, (loader, setname) in enumerate(zip([test_loader], ["test"])):
 
             num_samples = len(loader.dataset)
             colors = ["blue", "red"]
@@ -409,22 +458,22 @@ if __name__ == "__main__":
 
                 true_value = []
                 if data_sample.source == "LQ":
-                    true_value = data_sample.y[0:graph_feature_dim[0]].cpu()
-                    ax.plot(true_value, color="blue", linestyle='solid')
+                    true_value = data_sample.y[0 : graph_feature_dim[0]].cpu()
+                    ax.plot(true_value, color="blue", linestyle="solid")
                 elif data_sample.source == "HQ":
-                    true_value = data_sample.y[graph_feature_dim[0]:].cpu()
-                    ax.plot(true_value, color="red", linestyle='solid')
+                    true_value = data_sample.y[graph_feature_dim[0] :].cpu()
+                    ax.plot(true_value, color="red", linestyle="solid")
 
                 head_index = 0
-                for ihead in range(0,2):
+                for ihead in range(0, 2):
                     pred_head = pred[head_index].detach().cpu()
-                    ax.plot(pred_head.t(), color=colors[ihead], linestyle='dashed')
+                    ax.plot(pred_head.t(), color=colors[ihead], linestyle="dashed")
 
                 plt.ylim([-0.2, max(true_value) + 0.2])
-                plt.title("Molecule ID: "+f"{data_sample.ID}")
+                plt.title("Molecule ID: " + f"{data_sample.ID}")
                 plt.tight_layout()
                 plt.draw()
-                plt.savefig("logs/"+setname+f"_sample_{data_sample.ID}.png")
+                plt.savefig("logs/" + setname + f"_sample_{data_sample.ID}.png")
                 plt.close(fig)
 
     if args.format == "adios":

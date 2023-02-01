@@ -25,8 +25,10 @@ from hydragnn.utils.distributed import (
 )
 from collections import OrderedDict
 
+
 def flatten(l):
     return [item for sublist in l for item in sublist]
+
 
 def loss_function_selection(loss_function_string: str):
     if loss_function_string == "mse":
@@ -43,22 +45,54 @@ class CompetitionGatedLoss(torch.nn.Module):
     def __init__(self):
         super(CompetitionGatedLoss, self).__init__()
         self.loss = torch.nn.functional.mse_loss
+
     def forward(self, data_source, data_source_indices, y, pred, head_index):
 
-        source1 = [index for index in range(0, len(data_source)) if data_source[index] == 'LQ']
-        source2 = [index for index in range(0, len(data_source)) if data_source[index] == 'HQ']
+        source1 = [
+            index for index in range(0, len(data_source)) if data_source[index] == "LQ"
+        ]
+        source2 = [
+            index for index in range(0, len(data_source)) if data_source[index] == "HQ"
+        ]
 
         flatten_data_source_indices = flatten(data_source_indices)
-        flatten_source1 = [index for index in range(0, len(flatten_data_source_indices)) if
-                           flatten_data_source_indices[index] == 'LQ']
-        flatten_source2 = [index for index in range(0, len(flatten_data_source_indices)) if
-                           flatten_data_source_indices[index] == 'HQ']
+        flatten_source1 = [
+            index
+            for index in range(0, len(flatten_data_source_indices))
+            if flatten_data_source_indices[index] == "LQ"
+        ]
+        flatten_source2 = [
+            index
+            for index in range(0, len(flatten_data_source_indices))
+            if flatten_data_source_indices[index] == "HQ"
+        ]
 
-        loss_source1 = self.loss(pred[head_index[0]][flatten_source1].reshape(y[0][source1].shape), y[0][source1])
-        loss_source2 = self.loss(pred[head_index[1]][flatten_source2].reshape(y[1][source2].shape), y[1][source2])
+        # I introduced this term to make sure that autograd back-propagates all the gradients
+        zero_term = torch.Tensor([0.0]) * torch.sum(pred)
+        zero_term = zero_term.squeeze()
 
-        return loss_source1 + loss_source2, [loss_source1, loss_source2]
+        # when the data is processed in batched, it can happen that all data in a batch comes only from one single source
+        # in that case, y[0][source1] is empty
+        if len(source1) > 0:
+            loss_source1 = self.loss(
+                pred[head_index[0]][flatten_source1].reshape(y[0][source1].shape),
+                y[0][source1],
+            )
+        else:
+            loss_source1 = zero_term
 
+        if len(source2) > 0:
+            loss_source2 = self.loss(
+                pred[head_index[1]][flatten_source2].reshape(y[1][source2].shape),
+                y[1][source2],
+            )
+        else:
+            loss_source1 = zero_term
+
+        return loss_source1 + loss_source2 + zero_term, [
+            loss_source1 + zero_term,
+            loss_source2 + zero_term,
+        ]
 
 
 def save_model(model, optimizer, name, path="./logs/"):

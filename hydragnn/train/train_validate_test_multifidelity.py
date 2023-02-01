@@ -82,7 +82,9 @@ def train_validate_test_multifidelity(
         visualizer.num_nodes_plot()
 
     if create_plots and plot_init_solution:  # visualizing of initial conditions
-        _, _, true_values, predicted_values = test_multifidelity(test_loader, model, verbosity)
+        _, _, true_values, predicted_values = test_multifidelity(
+            test_loader, model, verbosity
+        )
         visualizer.create_scatter_plots(
             true_values,
             predicted_values,
@@ -334,9 +336,11 @@ def train_multifidelity(
         with record_function("forward"):
             data = data.to(get_device())
             pred = model(data)
-            #loss, tasks_loss = model.module.loss(pred, data.y, head_index)
+            # loss, tasks_loss = model.module.loss(pred, data.y, head_index)
             gated_loss = CompetitionGatedLoss()
-            loss, tasks_loss = gated_loss(data.source, data.source_indices, pred, data.y, head_index)
+            loss, tasks_loss = gated_loss(
+                data.source, data.source_indices, pred, data.y, head_index
+            )
         with record_function("backward"):
             loss.backward()
         print_peak_memory(verbosity, "Max memory allocated before optimizer step")
@@ -344,10 +348,24 @@ def train_multifidelity(
         print_peak_memory(verbosity, "Max memory allocated after optimizer")
         profiler.step()
         with torch.no_grad():
-            total_error += loss * data.num_graphs
+            try:
+                print(loss.shape)
+                total_error += loss * data.num_graphs
+            except:
+                print(loss.shape)
+                loss = loss.squeeze()
+                print(loss.shape)
+                total_error += loss * data.num_graphs
             num_samples_local += data.num_graphs
             for itask in range(len(tasks_loss)):
-                tasks_error[itask] += tasks_loss[itask] * data.num_graphs
+                try:
+                    print(tasks_loss[itask].shape)
+                    tasks_error[itask] += tasks_loss[itask] * data.num_graphs
+                except:
+                    print(tasks_loss[itask].shape)
+                    tasks_loss[itask] = tasks_loss[itask].squeeze()
+                    print(tasks_loss[itask].shape)
+                    tasks_error[itask] += tasks_loss[itask] * data.num_graphs
 
     train_error = total_error / num_samples_local
     tasks_error = tasks_error / num_samples_local
@@ -356,7 +374,6 @@ def train_multifidelity(
 
 @torch.no_grad()
 def validate_multifidelity(loader, model, verbosity, reduce_ranks=True):
-
     total_error = torch.tensor(0.0, device=get_device())
     tasks_error = torch.zeros(model.module.num_heads, device=get_device())
     num_samples_local = 0
@@ -365,9 +382,11 @@ def validate_multifidelity(loader, model, verbosity, reduce_ranks=True):
         head_index = get_head_indices(model, data)
         data = data.to(get_device())
         pred = model(data)
-        #error, tasks_loss = model.module.loss(pred, data.y, head_index)
+        # error, tasks_loss = model.module.loss(pred, data.y, head_index)
         gated_loss = CompetitionGatedLoss()
-        error, tasks_loss = gated_loss(data.source, data.source_indices, pred, data.y, head_index)
+        error, tasks_loss = gated_loss(
+            data.source, data.source_indices, pred, data.y, head_index
+        )
         total_error += error * data.num_graphs
         num_samples_local += data.num_graphs
         for itask in range(len(tasks_loss)):
@@ -382,8 +401,9 @@ def validate_multifidelity(loader, model, verbosity, reduce_ranks=True):
 
 
 @torch.no_grad()
-def test_multifidelity(loader, model, verbosity, reduce_ranks=True, return_samples=True):
-
+def test_multifidelity(
+    loader, model, verbosity, reduce_ranks=True, return_samples=True
+):
     total_error = torch.tensor(0.0, device=get_device())
     tasks_error = torch.zeros(model.module.num_heads, device=get_device())
     num_samples_local = 0
@@ -392,9 +412,11 @@ def test_multifidelity(loader, model, verbosity, reduce_ranks=True, return_sampl
         head_index = get_head_indices(model, data)
         data = data.to(get_device())
         pred = model(data)
-        #error, tasks_loss = model.module.loss(pred, data.y, head_index)
+        # error, tasks_loss = model.module.loss(pred, data.y, head_index)
         gated_loss = CompetitionGatedLoss()
-        error, tasks_loss = gated_loss(data.source, data.source_indices, pred, data.y, head_index)
+        error, tasks_loss = gated_loss(
+            data.source, data.source_indices, pred, data.y, head_index
+        )
         total_error += error * data.num_graphs
         num_samples_local += data.num_graphs
         for itask in range(len(tasks_loss)):
