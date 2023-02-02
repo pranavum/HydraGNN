@@ -337,7 +337,7 @@ def train_multifidelity(
             data = data.to(get_device())
             pred = model(data)
             # loss, tasks_loss = model.module.loss(pred, data.y, head_index)
-            gated_loss = CompetitionGatedLoss()
+            gated_loss = CompetitionGatedLoss(1.0, 1.0)
             loss, tasks_loss = gated_loss(
                 data.source, data.source_indices, pred, data.y, head_index
             )
@@ -369,7 +369,7 @@ def train_multifidelity(
 
     train_error = total_error / num_samples_local
     tasks_error = tasks_error / num_samples_local
-    print("train_error: ", train_error)
+    #print("train_error: ", train_error)
     return train_error, tasks_error
 
 
@@ -384,7 +384,7 @@ def validate_multifidelity(loader, model, verbosity, reduce_ranks=True):
         data = data.to(get_device())
         pred = model(data)
         # error, tasks_loss = model.module.loss(pred, data.y, head_index)
-        gated_loss = CompetitionGatedLoss()
+        gated_loss = CompetitionGatedLoss(1.0, 1.0)
         error, tasks_loss = gated_loss(
             data.source, data.source_indices, pred, data.y, head_index
         )
@@ -414,7 +414,7 @@ def test_multifidelity(
         data = data.to(get_device())
         pred = model(data)
         # error, tasks_loss = model.module.loss(pred, data.y, head_index)
-        gated_loss = CompetitionGatedLoss()
+        gated_loss = CompetitionGatedLoss(1.0, 1.0)
         error, tasks_loss = gated_loss(
             data.source, data.source_indices, pred, data.y, head_index
         )

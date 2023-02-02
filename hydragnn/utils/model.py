@@ -42,8 +42,10 @@ def loss_function_selection(loss_function_string: str):
 
 
 class CompetitionGatedLoss(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, alpha1, alpha2):
         super(CompetitionGatedLoss, self).__init__()
+        self.alpha1 = alpha1
+        self.alpha2 = alpha2
         self.loss = torch.nn.functional.mse_loss
 
     def forward(self, data_source, data_source_indices, y, pred, head_index):
@@ -92,20 +94,22 @@ class CompetitionGatedLoss(torch.nn.Module):
         """
 
         loss_source1 = self.loss(
-                pred[head_index[0]][flatten_source1].reshape(y[0][source1].shape),
-                y[0][source1],
-            )
+            pred[head_index[0]][flatten_source1].reshape(y[0][source1].shape),
+            y[0][source1],
+        )
 
         loss_source2 = self.loss(
-                pred[head_index[1]][flatten_source2].reshape(y[1][source2].shape),
-                y[1][source2],
-            )
+            pred[head_index[1]][flatten_source2].reshape(y[1][source2].shape),
+            y[1][source2],
+        )
 
-        #print("Loss source1: ", loss_source1)
-        #print("Loss source2: ", loss_source2)
+        scaled_loss_source1 = self.alpha1 * torch.nan_to_num(loss_source1)
+        scaled_loss_source2 = self.alpha2 * torch.nan_to_num(loss_source2)
 
-        return loss_source1 + loss_source2, [loss_source1, loss_source2]
+        # print("Loss source1: ", scaled_loss_source1)
+        # print("Loss source2: ", scaled_loss_source2)
 
+        return scaled_loss_source1 + scaled_loss_source2, [scaled_loss_source1, scaled_loss_source2]
 
 
 def save_model(model, optimizer, name, path="./logs/"):
