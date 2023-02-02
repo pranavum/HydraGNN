@@ -73,6 +73,7 @@ class CompetitionGatedLoss(torch.nn.Module):
 
         # when the data is processed in batched, it can happen that all data in a batch comes only from one single source
         # in that case, y[0][source1] is empty
+        """
         if len(source1) > 0:
             loss_source1 = self.loss(
                 pred[head_index[0]][flatten_source1].reshape(y[0][source1].shape),
@@ -88,11 +89,23 @@ class CompetitionGatedLoss(torch.nn.Module):
             )
         else:
             loss_source1 = zero_term
+        """
 
-        return loss_source1 + loss_source2 + zero_term, [
-            loss_source1 + zero_term,
-            loss_source2 + zero_term,
-        ]
+        loss_source1 = self.loss(
+                pred[head_index[0]][flatten_source1].reshape(y[0][source1].shape),
+                y[0][source1],
+            )
+
+        loss_source2 = self.loss(
+                pred[head_index[1]][flatten_source2].reshape(y[1][source2].shape),
+                y[1][source2],
+            )
+
+        #print("Loss source1: ", loss_source1)
+        #print("Loss source2: ", loss_source2)
+
+        return loss_source1 + loss_source2, [loss_source1, loss_source2]
+
 
 
 def save_model(model, optimizer, name, path="./logs/"):

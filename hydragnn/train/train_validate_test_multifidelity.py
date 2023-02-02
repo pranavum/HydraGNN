@@ -349,26 +349,27 @@ def train_multifidelity(
         profiler.step()
         with torch.no_grad():
             try:
-                print(loss.shape)
+                #print(loss.shape)
                 total_error += loss * data.num_graphs
             except:
-                print(loss.shape)
+                #print(loss.shape)
                 loss = loss.squeeze()
-                print(loss.shape)
+                #print(loss.shape)
                 total_error += loss * data.num_graphs
             num_samples_local += data.num_graphs
             for itask in range(len(tasks_loss)):
                 try:
-                    print(tasks_loss[itask].shape)
+                    #print(tasks_loss[itask].shape)
                     tasks_error[itask] += tasks_loss[itask] * data.num_graphs
                 except:
-                    print(tasks_loss[itask].shape)
+                    #print(tasks_loss[itask].shape)
                     tasks_loss[itask] = tasks_loss[itask].squeeze()
-                    print(tasks_loss[itask].shape)
+                    #print(tasks_loss[itask].shape)
                     tasks_error[itask] += tasks_loss[itask] * data.num_graphs
 
     train_error = total_error / num_samples_local
     tasks_error = tasks_error / num_samples_local
+    print("train_error: ", train_error)
     return train_error, tasks_error
 
 
