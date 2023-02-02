@@ -70,8 +70,8 @@ class CompetitionGatedLoss(torch.nn.Module):
         ]
 
         # I introduced this term to make sure that autograd back-propagates all the gradients
-        zero_term = torch.Tensor([0.0]) * torch.sum(pred)
-        zero_term = zero_term.squeeze()
+        #zero_term = torch.Tensor([0.0]) * torch.sum(pred)
+        #zero_term = zero_term.squeeze()
 
         # when the data is processed in batched, it can happen that all data in a batch comes only from one single source
         # in that case, y[0][source1] is empty
