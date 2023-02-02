@@ -70,29 +70,6 @@ class CompetitionGatedLoss(torch.nn.Module):
         ]
 
         # I introduced this term to make sure that autograd back-propagates all the gradients
-        #zero_term = torch.Tensor([0.0]) * torch.sum(pred)
-        #zero_term = zero_term.squeeze()
-
-        # when the data is processed in batched, it can happen that all data in a batch comes only from one single source
-        # in that case, y[0][source1] is empty
-        """
-        if len(source1) > 0:
-            loss_source1 = self.loss(
-                pred[head_index[0]][flatten_source1].reshape(y[0][source1].shape),
-                y[0][source1],
-            )
-        else:
-            loss_source1 = zero_term
-
-        if len(source2) > 0:
-            loss_source2 = self.loss(
-                pred[head_index[1]][flatten_source2].reshape(y[1][source2].shape),
-                y[1][source2],
-            )
-        else:
-            loss_source1 = zero_term
-        """
-
         loss_source1 = self.loss(
             pred[head_index[0]][flatten_source1].reshape(y[0][source1].shape),
             y[0][source1],
@@ -105,9 +82,6 @@ class CompetitionGatedLoss(torch.nn.Module):
 
         scaled_loss_source1 = self.alpha1 * torch.nan_to_num(loss_source1)
         scaled_loss_source2 = self.alpha2 * torch.nan_to_num(loss_source2)
-
-        # print("Loss source1: ", scaled_loss_source1)
-        # print("Loss source2: ", scaled_loss_source2)
 
         return scaled_loss_source1 + scaled_loss_source2, [scaled_loss_source1, scaled_loss_source2]
 
