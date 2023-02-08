@@ -464,9 +464,8 @@ if __name__ == "__main__":
                     true_value = data_sample.y[graph_feature_dim[0] :].cpu()
                     ax.plot(true_value, color="red", linestyle="solid")
 
-                head_index = 0
                 for ihead in range(0, 2):
-                    pred_head = pred[head_index].detach().cpu()
+                    pred_head = pred[ihead].detach().cpu()
                     ax.plot(pred_head.t(), color=colors[ihead], linestyle="dashed")
 
                 plt.ylim([-0.2, max(true_value) + 0.2])
