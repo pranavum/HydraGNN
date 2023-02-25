@@ -7,7 +7,7 @@
         "path": {"total": "10.13139_OLCF_1890159/NiNb_solid_solution"},
         "format": "CFG",
         "compositional_stratified_splitting": true,
-	"rotational_invariance": true,
+	    "rotational_invariance": true,
         "node_features": {
             "name": ["num_of_protons", "atomic_masses", "atomic_energy"],
             "dim": [1,1,1],
@@ -25,7 +25,7 @@
             "radius": 3.0,
             "max_neighbours": 100000,
 	    "edge_features": ["lengths"],
-	    "periodic_boundary_conditions": true,
+	    "periodic_boundary_conditions": false,
             "hidden_dim": 50,
             "num_conv_layers": 10,
             "output_heads": {
@@ -34,11 +34,6 @@
                     "dim_sharedlayers": 5,
                     "num_headlayers": 2,
                     "dim_headlayers": [50,25]
-                },
-                "node": {
-                    "num_headlayers": 2,
-                    "dim_headlayers": [50,25],
-                    "type": "mlp"
                 }
             },
             "task_weights": [1.0]
