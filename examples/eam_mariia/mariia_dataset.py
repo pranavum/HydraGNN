@@ -73,9 +73,9 @@ class MariiaDataset(CFGDataset):
                 torch.distributed.barrier()
 
         # scaled features by number of nodes
-        self.__scale_features_by_num_nodes()
+        self._AbstractRawDataset__scale_features_by_num_nodes()
 
-        self.__normalize_dataset()
+        self._AbstractRawDataset__normalize_dataset()
 
     def extract_formation_energy_value(self, filename):
         formation_energy_file = open(filename, 'r')
