@@ -1,175 +1,49 @@
 import os, json
 import matplotlib.pyplot as plt
-import random
-import pickle
-
 import logging
 import sys
-from tqdm import tqdm
 from mpi4py import MPI
-from itertools import chain
 import argparse
-import time
 
-from rdkit.Chem.rdmolfiles import MolFromPDBFile
 
 import hydragnn
-from hydragnn.utils.print_utils import print_distributed, iterate_tqdm
 from hydragnn.utils.time_utils import Timer
-#from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
-from hydragnn.utils.pickledataset import SimplePickleDataset
-from hydragnn.utils.smiles_utils import (
-    get_node_attribute_name,
-    generate_graphdata_from_rdkit_molecule,
-)
+from hydragnn.utils.config_utils import get_log_name_config
+from hydragnn.utils.model import print_model
+from DFTB_UV_Dataset import DFTB_UV_Dataset
+from hydragnn.utils.serializeddataset import SerializedWriter, SerializedDataset
+from hydragnn.preprocess.load_data import split_dataset
+from hydragnn.utils.print_utils import log
+
+try:
+    from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
+except ImportError:
+    pass
 
 import numpy as np
-#import adios2 as ad2
 
-import torch_geometric.data
 import torch
 import torch.distributed as dist
-
-import warnings
-
-warnings.filterwarnings("error")
-
-# FIXME: this works fine for now because we train on GDB-9 molecules
-# for larger chemical spaces, the following atom representation has to be properly expanded
-dftb_node_types = {"C": 0, "F": 1, "H": 2, "N": 3, "O": 4, "S": 5}
 
 
 def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
 
 
-def nsplit(a, n):
-    k, m = divmod(len(a), n)
-    return (a[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n))
-
-
-def dftb_datasets_load(dirpath, sampling=None, seed=None, frac=[0.9, 0.05, 0.05]):
-    if seed is not None:
-        random.seed(seed)
-    molecules_all = []
-    values_all = []
-    for subdir, dirs, files in os.walk(dirpath):
-        for dir in dirs:
-            # collect information about molecular structure and chemical composition
-            try:
-                pdb_filename = dirpath + '/' + dir + '/' + 'smiles.pdb'
-                mol = MolFromPDBFile(pdb_filename, sanitize=False, proximityBonding=True,
-                                     removeHs=True)  # , sanitize=False , removeHs=False)
-            # file not found -> exit here
-            except IOError:
-                print(f"'{pdb_filename}'" + " not found")
-                sys.exit(1)
-
-            try:
-                spectrum_filename = dirpath + '/' + dir + '/' + 'EXC-smooth.DAT'
-                spectrum_energies = list()
-                with open(spectrum_filename, "r") as input_file:
-                    count_line = 0
-                    for line in input_file:
-                        spectrum_energies.append(float(line.strip().split()[1]))
-
-            # file not found -> exit here
-            except IOError:
-                print(f"'{spectrum_filename}'" + " not found")
-                sys.exit(1)
-
-            molecules_all.append(mol)
-            values_all.append(spectrum_energies)
-    print("Total:", len(molecules_all), len(values_all))
-
-    a = list(range(len(molecules_all)))
-    ix0, ix1, ix2 = np.split(
-        a, [int(frac[0] * len(a)), int((frac[0] + frac[1]) * len(a))]
-    )
-
-    trainsmiles = []
-    valsmiles = []
-    testsmiles = []
-    trainset = []
-    valset = []
-    testset = []
-
-    for i in ix0:
-        trainsmiles.append(molecules_all[i])
-        trainset.append(values_all[i])
-
-    for i in ix1:
-        valsmiles.append(molecules_all[i])
-        valset.append(values_all[i])
-
-    for i in ix2:
-        testsmiles.append(molecules_all[i])
-        testset.append(values_all[i])
-
-    return (
-        [trainsmiles, valsmiles, testsmiles],
-        [torch.tensor(trainset), torch.tensor(valset), torch.tensor(testset)],
-        np.mean(values_all),
-        np.std(values_all),
-    )
-
-
-## Torch Dataset for DFTB data with subdirectories
-class DFTBDatasetFactory:
-    def __init__(
-        self, datafile, sampling=1.0, seed=43, var_config=None, norm_yflag=False
-    ):
-        self.var_config = var_config
-
-        ## Read full data
-        (
-            molecule_sets,
-            values_sets,
-            ymean_feature,
-            ystd_feature,
-        ) = dftb_datasets_load(datafile, sampling=sampling, seed=seed)
-        ymean = ymean_feature.tolist()
-        ystd = ystd_feature.tolist()
-
-        info([len(x) for x in values_sets])
-        self.dataset_lists = list()
-        for idataset, (molset, valueset) in enumerate(zip(molecule_sets, values_sets)):
-            self.dataset_lists.append((molset, valueset))
-
-    def get(self, label):
-        ## Set only assigned label data
-        labelnames = ["trainset", "valset", "testset"]
-        index = labelnames.index(label)
-
-        molset, valueset = self.dataset_lists[index]
-        return (molset, valueset)
-
-
-class DFTBDataset(torch.utils.data.Dataset):
-    def __init__(self, datasetfactory, label):
-        self.molecule_set, self.valueset = datasetfactory.get(label)
-        self.var_config = datasetfactory.var_config
-
-    def __len__(self):
-        return len(self.smileset)
-
-    def __getitem__(self, idx):
-        mol = self.molecule_set[idx]
-        ytarget = self.valueset[idx]
-        data = generate_graphdata_from_rdkit_molecule(mol, ytarget, dftb_node_types, self.var_config)
-        return data
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sampling", type=float, help="sampling ratio", default=None)
+    parser.add_argument(
+        "--loadexistingsplit",
+        action="store_true",
+        help="loading from existing pickle/adios files with train/test/validate splits",
+    )
     parser.add_argument(
         "--preonly",
         action="store_true",
-        help="preprocess only (no training)",
+        help="preprocess only. Adios or pickle saving and no train",
     )
+    parser.add_argument("--inputfile", help="input file", type=str, default="dftb_smooth_uv_spectrum.json")
     parser.add_argument("--mae", action="store_true", help="do mae calculation")
-
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--adios",
@@ -186,37 +60,25 @@ if __name__ == "__main__":
         const="pickle",
     )
     parser.set_defaults(format="pickle")
+
     args = parser.parse_args()
 
-    graph_feature_names = ["spectrum"]
-    graph_feature_dim = [351]
     dirpwd = os.path.dirname(os.path.abspath(__file__))
-    datafile = os.path.join(dirpwd, "dataset/dftb_gdb9_electronic_excitation_spectrum")
-    ##################################################################################################################
-    input_filename = os.path.join(dirpwd, "dftb_smooth_uv_spectrum.json")
-    ##################################################################################################################
-    # Configurable run choices (JSON file that accompanies this example script).
+    input_filename = os.path.join(dirpwd, args.inputfile)
     with open(input_filename, "r") as f:
         config = json.load(f)
-    verbosity = config["Verbosity"]["level"]
-    var_config = config["NeuralNetwork"]["Variables_of_interest"]
-    var_config["output_names"] = [
-        graph_feature_names[item]
-        for ihead, item in enumerate(var_config["output_index"])
-    ]
-    var_config["graph_feature_names"] = graph_feature_names
-    var_config["graph_feature_dims"] = graph_feature_dim
-    (
-        var_config["input_node_feature_names"],
-        var_config["input_node_feature_dims"],
-    ) = get_node_attribute_name(dftb_node_types)
+
+    datasetname = config["Dataset"]["name"]
+    graph_feature_names = config["Dataset"]["graph_features"]["name"]
+    graph_feature_dim = config["Dataset"]["graph_features"]["dim"]
+
+    hydragnn.utils.setup_log(datasetname)
+
     ##################################################################################################################
     # Always initialize for multi-rank training.
     comm_size, rank = hydragnn.utils.setup_ddp()
     ##################################################################################################################
-
     comm = MPI.COMM_WORLD
-
     ## Set up logging
     logging.basicConfig(
         level=logging.INFO,
@@ -224,101 +86,89 @@ if __name__ == "__main__":
         datefmt="%H:%M:%S",
     )
 
-    log_name = "dftb_eV_fullx"
-    hydragnn.utils.setup_log(log_name)
-    writer = hydragnn.utils.get_summary_writer(log_name)
+    for dataset_type, raw_data_path in config["Dataset"]["path"].items():
+        config["Dataset"]["path"][dataset_type] = os.path.join(dirpwd, raw_data_path)
 
-    if args.preonly:
+    if not args.loadexistingsplit and rank == 0:
+        ## Only rank=0 is enough for pre-processing
+        total = DFTB_UV_Dataset(config)
 
-        (
-            molecule_sets,
-            values_sets,
-            ymean_feature,
-            ystd_feature,
-        ) = dftb_datasets_load(datafile, sampling=args.sampling, seed=43)
-        var_config["ymean"] = ymean_feature.tolist()
-        var_config["ystd"] = ystd_feature.tolist()
+        trainset, valset, testset = split_dataset(
+            dataset=total,
+            perc_train=config["NeuralNetwork"]["Training"]["perc_train"],
+            stratify_splitting=False,
+        )
+        print(len(total), len(trainset), len(valset), len(testset))
 
-        os.makedirs("dataset/pickle/", exist_ok=True)
-
-        info([len(x) for x in values_sets])
-        dataset_lists = [[] for dataset in values_sets]
-        for idataset, (molset, valueset) in enumerate(zip(molecule_sets, values_sets)):
-
-            rx = list(nsplit(range(len(molset)), comm_size))[rank]
-            info("subset range:", idataset, len(molset), rx.start, rx.stop)
-            ## local portion
-            _molset = molset[rx.start : rx.stop]
-            _valueset = valueset[rx.start : rx.stop]
-            info("local molecule set size:", len(_molset))
-
-            setname = ["trainset", "valset", "testset"]
-            if args.format == "pickle":
-                if rank == 0:
-                    with open(
-                        "dataset/pickle/%s.meta" % (setname[idataset]),
-                        "w+",
-                    ) as f:
-                        f.write(str(len(molset)))
-
-            for i, (molset, ytarget) in iterate_tqdm(
-                enumerate(zip(_molset, _valueset)), verbosity, total=len(_molset)
-            ):
-                data = generate_graphdata_from_rdkit_molecule(
-                    molset, ytarget, dftb_node_types, var_config
-                )
-                dataset_lists[idataset].append(data)
-
-                ## (2022/07) This is for testing to compare with Adios
-                ## pickle write
-                if args.format == "pickle":
-                    fname = "dataset/pickle/dftb_uv_spectrum-%s-%d.pk" % (
-                        setname[idataset],
-                        rx.start + i,
-                    )
-                    with open(fname, "wb") as f:
-                        pickle.dump(data, f)
-
-        ## local data
         if args.format == "adios":
-            _trainset = dataset_lists[0]
-            _valset = dataset_lists[1]
-            _testset = dataset_lists[2]
-
-            adwriter = AdiosWriter("dataset/dftb_uv_spectrum.bp", comm)
-            adwriter.add("trainset", _trainset)
-            adwriter.add("valset", _valset)
-            adwriter.add("testset", _testset)
+            fname = os.path.join(
+                os.path.dirname(__file__), "./dataset/%s.bp" % datasetname
+            )
+            adwriter = AdiosWriter(fname, MPI.COMM_SELF)
+            adwriter.add("trainset", trainset)
+            adwriter.add("valset", valset)
+            adwriter.add("testset", testset)
+            adwriter.add_global("minmax_node_feature", total.minmax_node_feature)
+            adwriter.add_global("minmax_graph_feature", total.minmax_graph_feature)
             adwriter.save()
-
+        elif args.format == "pickle":
+            basedir = os.path.join(
+                os.path.dirname(__file__), "dataset", "serialized_dataset"
+            )
+            SerializedWriter(
+                trainset,
+                basedir,
+                datasetname,
+                "trainset",
+                minmax_node_feature=None,
+                minmax_graph_feature=None,
+            )
+            SerializedWriter(
+                valset,
+                basedir,
+                datasetname,
+                "valset",
+            )
+            SerializedWriter(
+                testset,
+                basedir,
+                datasetname,
+                "testset",
+            )
+    comm.Barrier()
+    if args.preonly:
         sys.exit(0)
 
     timer = Timer("load_data")
     timer.start()
     if args.format == "adios":
-        trainset = AdiosDataset(
-            "dataset/dftb_uv_spectrum.bp",
-            "trainset",
-            comm,
-            preload=False,
-            shmem=True,
-        )
-        valset = AdiosDataset("dataset/dftb_uv_spectrum.bp", "valset", comm)
-        testset = AdiosDataset("dataset/dftb_uv_spectrum.bp", "testset", comm)
+        info("Adios load")
+        opt = {
+            "preload": True,
+            "shmem": False,
+        }
+        fname = os.path.join(os.path.dirname(__file__), "./dataset/%s.bp" % datasetname)
+        trainset = AdiosDataset(fname, "trainset", comm, **opt)
+        valset = AdiosDataset(fname, "valset", comm, **opt)
+        testset = AdiosDataset(fname, "testset", comm, **opt)
     elif args.format == "pickle":
-        trainset = SimplePickleDataset(
-            "dataset/pickle", "dftb_uv_spectrum", "trainset"
+        info("Pickle load")
+        basedir = os.path.join(
+            os.path.dirname(__file__), "dataset", "serialized_dataset"
         )
-        valset = SimplePickleDataset(
-            "dataset/pickle", "dftb_uv_spectrum", "valset"
-        )
-        testset = SimplePickleDataset(
-            "dataset/pickle", "dftb_uv_spectrum", "testset"
-        )
+        trainset = SerializedDataset(basedir, datasetname, "trainset")
+        valset = SerializedDataset(basedir, datasetname, "valset")
+        testset = SerializedDataset(basedir, datasetname, "testset")
     else:
-        raise NotImplementedError("No supported format: %s" % (args.format))
+        raise ValueError("Unknown data format: %d" % args.format)
+    ## Set minmax
+    config["NeuralNetwork"]["Variables_of_interest"][
+        "minmax_node_feature"
+    ] = trainset.minmax_node_feature
+    config["NeuralNetwork"]["Variables_of_interest"][
+        "minmax_graph_feature"
+    ] = trainset.minmax_graph_feature
 
-    info("Adios load")
     info(
         "trainset,valset,testset size: %d %d %d"
         % (len(trainset), len(valset), len(testset))
@@ -327,18 +177,22 @@ if __name__ == "__main__":
     (train_loader, val_loader, test_loader,) = hydragnn.preprocess.create_dataloaders(
         trainset, valset, testset, config["NeuralNetwork"]["Training"]["batch_size"]
     )
-
-    config = hydragnn.utils.update_config(config, train_loader, val_loader, test_loader)
-
-    with open("./logs/" + log_name + "/config.json", "w") as f:
-        json.dump(config, f)
-
     timer.stop()
 
+    config = hydragnn.utils.update_config(config, train_loader, val_loader, test_loader)
+    var_config = config["NeuralNetwork"]["Variables_of_interest"]
+    config["NeuralNetwork"]["Variables_of_interest"].pop("minmax_node_feature", None)
+    config["NeuralNetwork"]["Variables_of_interest"].pop("minmax_graph_feature", None)
+
+    verbosity = config["Verbosity"]["level"]
     model = hydragnn.models.create_model_config(
         config=config["NeuralNetwork"],
         verbosity=verbosity,
     )
+    if rank == 0:
+        print_model(model)
+    comm.Barrier()
+
     model = hydragnn.utils.get_distributed_model(model, verbosity)
 
     learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
@@ -347,11 +201,13 @@ if __name__ == "__main__":
         optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001
     )
 
-    hydragnn.utils.load_existing_model_config(
-        model, config["NeuralNetwork"]["Training"], optimizer=optimizer
-    )
+    log_name = get_log_name_config(config)
+    writer = hydragnn.utils.get_summary_writer(log_name)
 
-    ##################################################################################################################
+    if dist.is_initialized():
+        dist.barrier()
+
+    hydragnn.utils.save_config(config, log_name)
 
     hydragnn.train.train_validate_test(
         model,
@@ -393,14 +249,19 @@ if __name__ == "__main__":
             error_mse = 0.0
 
             for sample_id in range(0,num_test_samples):
+                lower = 0.0
+                upper = 750.0
+                length = 37500
+                bins = [lower + x * (upper - lower) / length for x in range(length)]
                 error_mae += np.sum(np.abs(head_pred[(sample_id*graph_feature_dim[0]):(sample_id+1)*graph_feature_dim[0]] - head_true[(sample_id*graph_feature_dim[0]):(sample_id+1)*graph_feature_dim[0]]))
                 error_mse += np.sum((head_pred[(sample_id*graph_feature_dim[0]):(sample_id+1)*graph_feature_dim[0]] - head_true[(sample_id*graph_feature_dim[0]):(sample_id+1)*graph_feature_dim[0]]) ** 2)
 
                 fig, ax = plt.subplots()
                 true_sample = head_true[(sample_id * graph_feature_dim[0]):(sample_id + 1) * graph_feature_dim[0]]
                 pred_sample = head_pred[(sample_id * graph_feature_dim[0]):(sample_id + 1) * graph_feature_dim[0]]
-                ax.plot(true_sample)
-                ax.plot(pred_sample)
+                ax.plot(bins, true_sample, label="TD-DFTB+")
+                ax.plot(bins, pred_sample, label="HydraGNN")
+                plt.legend()
                 plt.draw()
                 plt.tight_layout()
                 plt.ylim([-0.2, max(true_sample)+0.2])

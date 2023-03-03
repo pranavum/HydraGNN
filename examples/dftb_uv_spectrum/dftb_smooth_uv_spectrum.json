@@ -2,10 +2,21 @@
   "Verbosity": {
     "level": 2
   },
+  "Dataset": {
+    "name": "GDB-9-Ex",
+    "path": {"total": "./dataset/dftb_gdb9_electronic_excitation_spectrum"},
+    "format": "EXC-DAT",
+    "graph_features":{
+      "name": [ "spectrum"],
+      "dim": [37500],
+      "column_index": [0]
+    }
+  },
   "NeuralNetwork": {
     "Architecture": {
       "model_type": "PNA",
       "max_neighbours": 20,
+      "radius": 1000,
       "hidden_dim": 200,
       "num_conv_layers": 6,
       "output_heads": {
@@ -44,12 +55,15 @@
       "type": [
         "graph"
       ],
+      "output_dim": [37500],
+      "output_names": ["spectrum"],
       "denormalize_output": false
     },
     "Training": {
       "num_epoch": 50,
       "batch_size": 128,
       "continue": 0,
+      "perc_train": 0.8,
       "startfrom": "existing_model",
       "Optimizer": {
         "learning_rate": 0.001
