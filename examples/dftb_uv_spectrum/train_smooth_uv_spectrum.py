@@ -245,6 +245,7 @@ if __name__ == "__main__":
             ax = axs[isub]
 
             num_test_samples = len(test_loader.dataset)
+            mol_ID = [item.ID for item in test_loader.dataset]
             error_mae = 0.0
             error_mse = 0.0
 
@@ -261,6 +262,7 @@ if __name__ == "__main__":
                 pred_sample = head_pred[(sample_id * graph_feature_dim[0]):(sample_id + 1) * graph_feature_dim[0]]
                 ax.plot(bins, true_sample, label="TD-DFTB+")
                 ax.plot(bins, pred_sample, label="HydraGNN")
+                plt.title("molecule ID: "+mol_ID[sample_id])
                 plt.legend()
                 plt.draw()
                 plt.tight_layout()

@@ -99,6 +99,7 @@ class DFTB_UV_Dataset:
                     spectrum_energies.append(float(line.strip().split()[1]))
 
             data_object = generate_graphdata_from_rdkit_molecule(mol, torch.tensor(spectrum_energies), dftb_node_types)
+            data_object.ID = dir.replace('mol_', '')
 
         except:
             pass
