@@ -18,8 +18,10 @@ from hydragnn.utils.model import loss_function_selection
 import sys
 from hydragnn.utils.distributed import get_device
 
+from .AbstractBase import AbstractBase
 
-class Base(Module):
+
+class Base(AbstractBase):
     def __init__(
         self,
         input_dim: int,
@@ -37,203 +39,22 @@ class Base(Module):
         num_conv_layers: int = 16,
         num_nodes: int = None,
     ):
-        super().__init__()
-        self.device = get_device()
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.dropout = dropout
-        self.num_conv_layers = num_conv_layers
-        self.convs = ModuleList()
-        self.batch_norms = ModuleList()
-        self.num_nodes = num_nodes
-        ##One head represent one variable
-        ##Head can have different sizes, head_dims
-        self.heads_NN = ModuleList()
-        self.config_heads = config_heads
-        self.head_type = output_type
-        self.head_dims = output_dim
-        self.num_heads = len(self.head_dims)
-        ##convolutional layers for node level predictions
-        self.convs_node_hidden = ModuleList()
-        self.batch_norms_node_hidden = ModuleList()
-        self.convs_node_output = ModuleList()
-        self.batch_norms_node_output = ModuleList()
-
-        self.loss_function = loss_function_selection(loss_function_type)
-        self.ilossweights_nll = ilossweights_nll
-        self.ilossweights_hyperp = ilossweights_hyperp
-        if self.ilossweights_hyperp * self.ilossweights_nll == 1:
-            raise ValueError(
-                "ilossweights_hyperp and ilossweights_nll cannot be both set to 1."
-            )
-        if self.ilossweights_hyperp == 1:
-            if len(loss_weights) != self.num_heads:
-                raise ValueError(
-                    "Inconsistent number of loss weights and tasks: "
-                    + str(len(loss_weights))
-                    + " VS "
-                    + str(self.num_heads)
-                )
-            else:
-                self.loss_weights = loss_weights
-            weightabssum = sum(abs(number) for number in self.loss_weights)
-            self.loss_weights = [iw / weightabssum for iw in self.loss_weights]
-
-        # Condition to pass edge_attr through forward propagation.
-        self.use_edge_attr = False
-        if (
-            hasattr(self, "edge_dim")
-            and self.edge_dim is not None
-            and self.edge_dim > 0
-        ):
-            self.use_edge_attr = True
-
-        # Option to only train final property layers.
-        self.freeze_conv = freeze_conv
-        # Option to set initially large output bias (UQ).
-        self.initial_bias = initial_bias
-
-        self._init_conv()
-        if self.freeze_conv:
-            self._freeze_conv()
-        self._multihead()
-        if self.initial_bias is not None:
-            self._set_bias()
-
-    def _init_conv(self):
-        self.convs.append(self.get_conv(self.input_dim, self.hidden_dim))
-        self.batch_norms.append(BatchNorm(self.hidden_dim))
-        for _ in range(self.num_conv_layers - 1):
-            conv = self.get_conv(self.hidden_dim, self.hidden_dim)
-            self.convs.append(conv)
-            self.batch_norms.append(BatchNorm(self.hidden_dim))
-
-    def _freeze_conv(self):
-        for module in [self.convs, self.batch_norms]:
-            for layer in module:
-                for param in layer.parameters():
-                    param.requires_grad = False
-
-    def _set_bias(self):
-        for head, type in zip(self.heads_NN, self.head_type):
-            # FIXME: we only currently enable this for graph outputs.
-            if type == "graph":
-                # Set the bias of the last linear layer to a large value (UQ)
-                head[-1].bias.data.fill_(self.initial_bias)
-
-    def _init_node_conv(self):
-        # *******convolutional layers for node level predictions*******#
-        # two ways to implement node features from here:
-        # 1. one graph for all node features
-        # 2. one graph for one node features (currently implemented)
-        if (
-            "node" not in self.config_heads
-            or self.config_heads["node"]["type"] != "conv"
-        ):
-            return
-        node_feature_ind = [
-            i for i, head_type in enumerate(self.head_type) if head_type == "node"
-        ]
-        if len(node_feature_ind) == 0:
-            return
-        # In this part, each head has same number of convolutional layers, but can have different output dimension
-        self.convs_node_hidden.append(
-            self.get_conv(self.hidden_dim, self.hidden_dim_node[0])
+        super().__init__(
+            input_dim,
+            hidden_dim,
+            output_dim,
+            output_type,
+            config_heads,
+            loss_function_type,
+            ilossweights_hyperp,
+            loss_weights,
+            ilossweights_nll,
+            freeze_conv,
+            initial_bias,
+            dropout,
+            num_conv_layers,
+            num_nodes,
         )
-        self.batch_norms_node_hidden.append(BatchNorm(self.hidden_dim_node[0]))
-        for ilayer in range(self.num_conv_layers_node - 1):
-            self.convs_node_hidden.append(
-                self.get_conv(
-                    self.hidden_dim_node[ilayer], self.hidden_dim_node[ilayer + 1]
-                )
-            )
-            self.batch_norms_node_hidden.append(
-                BatchNorm(self.hidden_dim_node[ilayer + 1])
-            )
-        for ihead in node_feature_ind:
-            self.convs_node_output.append(
-                self.get_conv(self.hidden_dim_node[-1], self.head_dims[ihead])
-            )
-            self.batch_norms_node_output.append(BatchNorm(self.head_dims[ihead]))
-
-    def _multihead(self):
-        ############multiple heads/taks################
-        # shared dense layers for heads with graph level output
-        dim_sharedlayers = 0
-        if "graph" in self.config_heads:
-            denselayers = []
-            dim_sharedlayers = self.config_heads["graph"]["dim_sharedlayers"]
-            denselayers.append(Linear(self.hidden_dim, dim_sharedlayers))
-            denselayers.append(ReLU())
-            for ishare in range(self.config_heads["graph"]["num_sharedlayers"] - 1):
-                denselayers.append(Linear(dim_sharedlayers, dim_sharedlayers))
-                denselayers.append(ReLU())
-            self.graph_shared = Sequential(*denselayers)
-
-        if "node" in self.config_heads:
-            self.num_conv_layers_node = self.config_heads["node"]["num_headlayers"]
-            self.hidden_dim_node = self.config_heads["node"]["dim_headlayers"]
-            self._init_node_conv()
-
-        inode_feature = 0
-        for ihead in range(self.num_heads):
-            # mlp for each head output
-            if self.head_type[ihead] == "graph":
-                num_head_hidden = self.config_heads["graph"]["num_headlayers"]
-                dim_head_hidden = self.config_heads["graph"]["dim_headlayers"]
-                denselayers = []
-                denselayers.append(Linear(dim_sharedlayers, dim_head_hidden[0]))
-                denselayers.append(ReLU())
-                for ilayer in range(num_head_hidden - 1):
-                    denselayers.append(
-                        Linear(dim_head_hidden[ilayer], dim_head_hidden[ilayer + 1])
-                    )
-                    denselayers.append(ReLU())
-                denselayers.append(
-                    Linear(
-                        dim_head_hidden[-1],
-                        self.head_dims[ihead] + self.ilossweights_nll * 1,
-                    )
-                )
-                head_NN = Sequential(*denselayers)
-            elif self.head_type[ihead] == "node":
-                self.node_NN_type = self.config_heads["node"]["type"]
-                head_NN = ModuleList()
-                if self.node_NN_type == "mlp" or self.node_NN_type == "mlp_per_node":
-                    self.num_mlp = 1 if self.node_NN_type == "mlp" else self.num_nodes
-                    assert (
-                        self.num_nodes is not None
-                    ), "num_nodes must be positive integer for MLP"
-                    # """if different graphs in the dataset have different size, one MLP is shared across all nodes """
-                    head_NN = MLPNode(
-                        self.hidden_dim,
-                        self.head_dims[ihead],
-                        self.num_mlp,
-                        self.hidden_dim_node,
-                        self.config_heads["node"]["type"],
-                    )
-                elif self.node_NN_type == "conv":
-                    for conv, batch_norm in zip(
-                        self.convs_node_hidden, self.batch_norms_node_hidden
-                    ):
-                        head_NN.append(conv)
-                        head_NN.append(batch_norm)
-                    head_NN.append(self.convs_node_output[inode_feature])
-                    head_NN.append(self.batch_norms_node_output[inode_feature])
-                    inode_feature += 1
-                else:
-                    raise ValueError(
-                        "Unknown head NN structure for node features"
-                        + self.node_NN_type
-                        + "; currently only support 'mlp', 'mlp_per_node' or 'conv' (can be set with config['NeuralNetwork']['Architecture']['output_heads']['node']['type'], e.g., ./examples/ci_multihead.json)"
-                    )
-            else:
-                raise ValueError(
-                    "Unknown head type"
-                    + self.head_type[ihead]
-                    + "; currently only support 'graph' or 'node'"
-                )
-            self.heads_NN.append(head_NN)
 
     def forward(self, data):
         x, edge_index, batch = (
