@@ -12,6 +12,8 @@
 import os
 import torch
 from torch_geometric.data import Data
+from torch_geometric.typing import OptTensor
+from typing import Callable, Optional
 
 from hydragnn.models.GINStack import GINStack
 from hydragnn.models.PNAStack import PNAStack
@@ -19,6 +21,7 @@ from hydragnn.models.GATStack import GATStack
 from hydragnn.models.MFCStack import MFCStack
 from hydragnn.models.CGCNNStack import CGCNNStack
 from hydragnn.models.SAGEStack import SAGEStack
+from hydragnn.models.SchNetStack import SchNetStack
 
 from hydragnn.utils.distributed import get_device
 from hydragnn.utils.print_utils import print_distributed
@@ -47,6 +50,7 @@ def create_model_config(
         config["Architecture"]["max_neighbours"],
         config["Architecture"]["edge_dim"],
         config["Architecture"]["pna_deg"],
+        config["Architecture"]["radius"],
         verbosity,
         use_gpu,
     )
@@ -69,8 +73,18 @@ def create_model(
     max_neighbours: int = None,
     edge_dim: int = None,
     pna_deg: torch.tensor = None,
+    radius_cutoff: float = 10.0,
     verbosity: int = 0,
     use_gpu: bool = True,
+    num_filters: int = 128,
+    num_interactions: int = 6,
+    num_gaussians: int = 50,
+    interaction_graph: Optional[Callable] = None,
+    readout: str = "add",
+    dipole: bool = False,
+    mean: Optional[float] = None,
+    std: Optional[float] = None,
+    atomref: OptTensor = None,
 ):
     timer = Timer("create_model")
     timer.start()
@@ -166,6 +180,31 @@ def create_model(
 
     elif model_type == "SAGE":
         model = SAGEStack(
+            input_dim,
+            hidden_dim,
+            output_dim,
+            output_type,
+            output_heads,
+            loss_function_type,
+            loss_weights=task_weights,
+            freeze_conv=freeze_conv,
+            num_conv_layers=num_conv_layers,
+            num_nodes=num_nodes,
+        )
+
+    elif model_type == "SchNet":
+        model = SchNetStack(
+            num_filters,
+            num_interactions,
+            num_gaussians,
+            radius_cutoff,
+            interaction_graph,
+            max_neighbours,
+            readout,
+            dipole,
+            mean,
+            std,
+            atomref,
             input_dim,
             hidden_dim,
             output_dim,

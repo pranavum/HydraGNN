@@ -130,6 +130,7 @@ def unittest_train_model(model_type, ci_input, use_lengths, overwrite_data=False
         "GIN": [0.25, 0.20],
         "GAT": [0.60, 0.70],
         "CGCNN": [0.50, 0.40],
+        "SchNet": [0.50, 0.40],
     }
     if use_lengths and ("vector" not in ci_input):
         thresholds["CGCNN"] = [0.175, 0.175]
@@ -171,7 +172,9 @@ def unittest_train_model(model_type, ci_input, use_lengths, overwrite_data=False
 
 
 # Test across all models with both single/multihead
-@pytest.mark.parametrize("model_type", ["SAGE", "GIN", "GAT", "MFC", "PNA", "CGCNN"])
+@pytest.mark.parametrize(
+    "model_type", ["SAGE", "GIN", "GAT", "MFC", "PNA", "CGCNN", "SchNet"]
+)
 @pytest.mark.parametrize("ci_input", ["ci.json", "ci_multihead.json"])
 def pytest_train_model(model_type, ci_input, overwrite_data=False):
     unittest_train_model(model_type, ci_input, False, overwrite_data)
