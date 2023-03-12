@@ -98,7 +98,7 @@ def normalize_data_sample_log_scale_fluence(data, input_scaling_tensor, output_s
 
 def read_mesh_coordinates_and_nodal_features_from_csv_file(time_step_index):
     #file_relative_path = "examples/concrete_shielding/dataset/concrete_shielding/nodal_info_time/PointData_" + str(time_step_index) + '.csv'
-    file_relative_path = "examples/concrete_shielding/dataset/concrete_shielding/inputs/PointData_" + str(
+    file_relative_path = "dataset/concrete_shielding/inputs/PointData_" + str(
         time_step_index) + '.csv'
     absolute_path = os.path.abspath(os.getcwd())
     df = pd.read_csv(absolute_path + '/' + file_relative_path)
@@ -122,7 +122,7 @@ def read_mesh_coordinates_and_nodal_features_from_csv_file(time_step_index):
 def read_node_information_for_time_step(time_step_index, vertex_index):
     #file_relative_path = 'examples/concrete_shielding/dataset/concrete_shielding/training_data' + '/' + 'workdir.' + str(
     #    vertex_index) + '/' + 'moose_out.csv'
-    file_relative_path = 'examples/concrete_shielding/dataset/concrete_shielding' + '/' + 'workdir.' + str(
+    file_relative_path = 'dataset/concrete_shielding' + '/' + 'workdir.' + str(
         vertex_index) + '/' + 'moose_out.csv'
     absolute_path = os.path.abspath(os.getcwd())
     df = pd.read_csv(absolute_path + '/' + file_relative_path)
@@ -385,12 +385,25 @@ if __name__ == "__main__":
         valset = ConcreteRawDataset(fact, "valset")
         testset = ConcreteRawDataset(fact, "testset")
     elif args.format == "pickle":
-        dirname = "dataset/pickle"
-        trainset = SimplePickleDataset(dirname, "concrete_shielding", "trainset")
-        valset = SimplePickleDataset(dirname, "concrete_shielding", "valset")
-        testset = SimplePickleDataset(dirname, "concrete_shielding", "testset")
+        ##set directory to load processed pickle files, train/validate/test
+        trainset = []
+        valset = []
+        testset = []
+        for dataset_type in ["train", "val", "test"]:
+            with open(f'dataset/pickle/{dataset_type}set.meta') as f:
+                num_samples = int(f.readline().strip('\n')) 
+                for sample_count in range(0,num_samples):
+                    with open("dataset/pickle/concrete_shielding-"+dataset_type+"set-"+str(sample_count)+".pk", 'rb') as pickle_file:
+                        data_object = pickle.load(pickle_file)
+                        if "train"==dataset_type:
+                            trainset.append(data_object)
+                        elif "val"==dataset_type:
+                            valset.append(data_object)
+                        elif "test"==dataset_type:
+                            testset.append(data_object)
+
     else:
-        raise NotImplementedError("No supported format: %s" % (args.format))
+        raise ValueError("Unknown data format: %d" % args.format)
 
     info("Data load")
     info(
@@ -447,7 +460,7 @@ if __name__ == "__main__":
         config["NeuralNetwork"],
         log_name,
         verbosity,
-        create_plots=False,
+        create_plots=True,
     )
 
     hydragnn.utils.save_model(model, optimizer, log_name)

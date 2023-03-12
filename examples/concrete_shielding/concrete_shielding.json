@@ -5,20 +5,22 @@
     "NeuralNetwork": {
         "Architecture": {
             "model_type": "PNA",
-            "max_neighbours": 100,
+	    "radius": 5.0,
+	    "edge_features": ["lengths"],
+            "max_neighbours": 110,
             "hidden_dim": 100,
-            "num_conv_layers": 6,
+            "num_conv_layers": 4,
             "output_heads": {
                  "node": {
-                    "num_headlayers": 2,
-                    "dim_headlayers": [50,50],
+                    "num_headlayers": 3,
+                    "dim_headlayers": [1000,1000,1000],
                     "type": "mlp"
                 }
             },
             "task_weights": [1.0, 1.0]
         },
         "Variables_of_interest": {
-            "input_node_features": [0,1,2,3],
+            "input_node_features": [0,1,2,3,4],
             "output_index": [0,1],
             "type": ["node", "node"],
             "denormalize_output": false
