@@ -148,6 +148,7 @@ for irun in range(1, 2):
             true_values, predicted_values, s=8, c=hist2d_norm, vmin=0, vmax=1
         )
         plt.clim(0, 1)
+        ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", color="red")
         plt.colorbar()
         plt.xlabel("True values")
         plt.ylabel("Predicted values")
