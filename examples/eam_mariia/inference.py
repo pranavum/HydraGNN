@@ -75,11 +75,7 @@ def info(*args, logtype="info", sep=" "):
 
 if __name__ == "__main__":
 
-<<<<<<< HEAD
     model_name = "energy"
-=======
-    model_name = "bulk"
->>>>>>> d15d908dbfd67af404b635886f1abd096ca5ffd4
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -93,11 +89,7 @@ if __name__ == "__main__":
         help="preprocess only. Adios or pickle saving and no train",
     )
     parser.add_argument(
-<<<<<<< HEAD
         "--inputfile", help="input file", type=str, default="./logs/energy/config.json"
-=======
-        "--inputfile", help="input file", type=str, default="./logs/bulk/config.json"
->>>>>>> d15d908dbfd67af404b635886f1abd096ca5ffd4
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -131,8 +123,6 @@ if __name__ == "__main__":
 
     datasetname = config["Dataset"]["name"]
 
-<<<<<<< HEAD
-=======
     if not args.loadexistingsplit:
         total = CFGDataset(config)
         print(len(total))
@@ -153,7 +143,6 @@ if __name__ == "__main__":
     if args.preonly:
         sys.exit(0)
 
->>>>>>> d15d908dbfd67af404b635886f1abd096ca5ffd4
     timer = Timer("load_data")
     timer.start()
     if args.format == "pickle":
