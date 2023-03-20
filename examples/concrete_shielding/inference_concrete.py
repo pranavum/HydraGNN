@@ -43,10 +43,6 @@ import torch_geometric.data
 import torch
 import torch.distributed as dist
 
-import warnings
-
-warnings.filterwarnings("error")
-
 import time
 
 plt.rcParams.update({"font.size": 16})
@@ -63,6 +59,7 @@ DatasetDir = os.path.join(
 )
 
 maximum_input = torch.load('maximum_input.pt')
+maximum_output = torch.load('maximum_output.pt')
 
 ######################################################################
 for irun in range(1, 2):
@@ -82,9 +79,23 @@ for irun in range(1, 2):
 
         pickle_path = DatasetDir + "/pickle/"
 
-        normalized_trainset = SimplePickleDataset(pickle_path, "concrete_shielding", "trainset")
-        normalized_valset = SimplePickleDataset(pickle_path, "concrete_shielding", "valset")
-        normalized_testset = SimplePickleDataset(pickle_path, "concrete_shielding", "testset")
+        ##set directory to load processed pickle files, train/validate/test
+        normalized_trainset = []
+        normalized_valset = []
+        normalized_testset = []
+        for dataset_type in ["train", "val", "test"]:
+            with open(f'dataset/pickle/{dataset_type}set.meta') as f:
+                num_samples = int(f.readline().strip('\n'))
+                for sample_count in range(0, num_samples):
+                    with open("dataset/pickle/concrete_shielding-" + dataset_type + "set-" + str(sample_count) + ".pk",
+                              'rb') as pickle_file:
+                        data_object = pickle.load(pickle_file)
+                        if "train" == dataset_type:
+                            normalized_trainset.append(data_object)
+                        elif "val" == dataset_type:
+                            normalized_valset.append(data_object)
+                        elif "test" == dataset_type:
+                            normalized_testset.append(data_object)
 
         (train_loader, val_loader, test_loader,) = hydragnn.preprocess.create_dataloaders(
             normalized_trainset, normalized_valset, normalized_testset,
@@ -110,20 +121,29 @@ for irun in range(1, 2):
         list_indices_large_mismatch_damage = []
         time_step_index_large_mismatch_damage = []
 
+        test_max_average_linear_expansion = 0.0
+        test_max_average_damage = 0.0
+
         for test_data in test_loader.dataset:
             test_data.x = torch.matmul(test_data.x, torch.diag(1. / maximum_input))
             prediction = model(test_data)
-            difference_average_linear_expansion = test_data.y[0:1681] - prediction[0]
-            difference_average_damage = test_data.y[1681:] - prediction[1]
+            difference_average_linear_expansion = test_data.y[0:3321] - prediction[0]
+            difference_average_linear_expansion_rescaled = difference_average_linear_expansion * maximum_output[0]
+            difference_average_damage = test_data.y[3321:] - prediction[1]
+            difference_average_damage_rescaled = difference_average_damage * maximum_output[1]
+
+            test_max_average_linear_expansion = max(difference_average_linear_expansion_rescaled.max(),
+                                                    test_max_average_linear_expansion)
+            test_max_average_damage = max(difference_average_damage_rescaled.max(), test_max_average_damage)
 
             if max(abs(difference_average_linear_expansion)) > 0.3:
-                indices_expansion = torch.Tensor([item for item in range(0, 1681)]).unsqueeze(1)
+                indices_expansion = torch.Tensor([item for item in range(0, 3321)]).unsqueeze(1)
                 new_list = list(indices_expansion[abs(difference_average_linear_expansion) > 0.3])
                 list_indices_large_mismatch_expansion.extend(new_list)
                 time_step_index_large_mismatch_expansion.extend([test_data.time_step_index]*len(new_list))
 
             if max(abs(difference_average_damage)) > 0.3:
-                indices_damage = torch.Tensor([item for item in range(0,1681)]).unsqueeze(1)
+                indices_damage = torch.Tensor([item for item in range(0,3321)]).unsqueeze(1)
                 new_list = list(indices_damage[abs(difference_average_damage) > 0.3])
                 list_indices_large_mismatch_damage.extend(new_list)
                 time_step_index_large_mismatch_damage.extend([test_data.time_step_index] * len(new_list))
@@ -133,13 +153,13 @@ for irun in range(1, 2):
 
         # create histogram from list of data
         plt.figure()
-        plt.hist(list_indices_large_mismatch_expansion, bins=1681)
+        plt.hist(list_indices_large_mismatch_expansion, bins=3321)
         plt.savefig('expansion.png')
         plt.close()
 
         # create histogram from list of data
         plt.figure()
-        plt.hist(list_indices_large_mismatch_damage, bins=1681)
+        plt.hist(list_indices_large_mismatch_damage, bins=3321)
         plt.savefig('damage.png')
         plt.close()
 
@@ -154,6 +174,12 @@ for irun in range(1, 2):
             for index in range(0, len(list_indices_large_mismatch_damage)):
                 damage_file.write( str(list_indices_large_mismatch_damage[index])+"\t"+str(time_step_index_large_mismatch_damage[index])+"\n" )
             damage_file.close()
+
+        print("Maximum average linear expansion: ", test_max_average_linear_expansion)
+        print("Maximum average damage: ", test_max_average_damage)
+
+
+
 
 
 
