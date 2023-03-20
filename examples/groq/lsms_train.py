@@ -103,7 +103,7 @@ if __name__ == "__main__":
             adwriter.save()
         elif args.format == "pickle":
             basedir = os.path.join(
-                os.path.dirname(__file__), "dataset", "serialized_dataset"
+                os.path.dirname(__file__), "dataset_lsms", "serialized_dataset"
             )
             SerializedWriter(
                 trainset,
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     elif args.format == "pickle":
         info("Pickle load")
         basedir = os.path.join(
-            os.path.dirname(__file__), "dataset", "serialized_dataset"
+            os.path.dirname(__file__), "dataset_lsms", "serialized_dataset"
         )
         trainset = SerializedDataset(basedir, datasetname, "trainset")
         valset = SerializedDataset(basedir, datasetname, "valset")

@@ -37,15 +37,15 @@ plt.rcParams.update({"font.size": 16})
 
 CaseDir = os.path.join(
     os.path.dirname(__file__),
-    "logs",
+    "logs_lsms",
 )
 
 
 def create_bct_sample(config):
     # Create BCT lattice structure with 32 nodes
-    uc_x = 4
-    uc_y = 2
-    uc_z = 2
+    uc_x = 12
+    uc_y = 6
+    uc_z = 6
     lxy = 5.218
     lz = 7.058
     count = 0
@@ -124,7 +124,7 @@ for irun in range(1, 2):
             model
         )
 
-        load_existing_model(model, model_name, path="./logs/")
+        load_existing_model(model, model_name, path="logs_lsms/")
 
         data_list = []
 
