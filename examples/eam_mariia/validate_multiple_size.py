@@ -153,7 +153,7 @@ if __name__ == "__main__":
 
     test_minmax_graph_feature = []
 
-    with open("large_crystal_dataset/serialized_dataset/NiPt-testset.pkl", "rb") as f:
+    with open("large_crystal_dataset/serialized_dataset/NiPt-trainset.pkl", "rb") as f:
         _ = pickle.load(f)
         test_minmax_graph_feature = pickle.load(f)
 
