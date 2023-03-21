@@ -123,36 +123,12 @@ if __name__ == "__main__":
 
     datasetname = config["Dataset"]["name"]
 
-    if not args.loadexistingsplit:
-        total = CFGDataset(config)
-        print(len(total))
-        if args.format == "pickle":
-            basedir = os.path.join(
-                os.path.dirname(__file__), "large_crystal_dataset", "serialized_dataset"
-            )
-            SerializedWriter(
-                total,
-                basedir,
-                datasetname,
-                "testset",
-                minmax_node_feature=total.minmax_node_feature,
-                minmax_graph_feature=total.minmax_graph_feature,
-            )
-
     comm.Barrier()
     if args.preonly:
         sys.exit(0)
 
     timer = Timer("load_data")
     timer.start()
-    if args.format == "pickle":
-        info("Pickle load")
-        basedir = os.path.join(
-            os.path.dirname(__file__), "large_crystal_dataset", "serialized_dataset"
-        )
-        dataset = SerializedDataset(basedir, datasetname, "testset")
-    else:
-        raise ValueError("Inference currently uses only pickle files")
 
     model = create_model_config(
         config=config["NeuralNetwork"],
@@ -177,9 +153,14 @@ if __name__ == "__main__":
 
     test_minmax_graph_feature = []
 
-    with open("large_crystal_dataset/serialized_dataset/NiPt-trainset.pkl", "rb") as f:
+    with open("large_crystal_dataset/serialized_dataset/NiPt-test.pkl", "rb") as f:
         _ = pickle.load(f)
         test_minmax_graph_feature = pickle.load(f)
+
+    with open("large_crystal_dataset/serialized_dataset/NiPt-testset.pkl", "rb") as f:
+        _ = pickle.load(f)
+        _ = pickle.load(f)
+        dataset = pickle.load(f)
 
     num_samples = len(dataset)
     true_values = []
