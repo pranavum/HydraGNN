@@ -35,54 +35,42 @@ class MariiaMultisizeDataset(CFGDataset):
         """
 
         for dataset_type, raw_data_path in self.path_dictionary.items():
-            for _, dirs, _ in os.walk(raw_data_path):
-                for atom_system_dir in dirs:
-                    atom_system_dir_path = raw_data_path + '/' + atom_system_dir
-                    pure_Ni_object = self.__transform_ASE_object_to_data_object(atom_system_dir_path + '/' + 'Ni_ground_state.cfg')
-                    pure_Ni_object.y = self.extract_formation_energy_value(atom_system_dir_path + '/' + "Ni_ground_state_formation_energy.txt")
-                    self.dataset.append(pure_Ni_object)
+            for atom_system_dir in os.listdir(raw_data_path):
+                atom_system_dir_path = raw_data_path + '/' + atom_system_dir
+                pure_Ni_object = self.__transform_ASE_object_to_data_object(atom_system_dir_path + '/' + 'Ni_ground_state.cfg')
+                self.dataset.append(pure_Ni_object)
 
-                    pure_Pt_object = self.__transform_ASE_object_to_data_object(atom_system_dir_path + '/' + 'Pt_ground_state.cfg')
-                    pure_Pt_object.y = self.extract_formation_energy_value(atom_system_dir_path + '/' + "Pt_ground_state_formation_energy.txt")
-                    self.dataset.append(pure_Pt_object)
+                pure_Pt_object = self.__transform_ASE_object_to_data_object(atom_system_dir_path + '/' + 'Pt_ground_state.cfg')
+                self.dataset.append(pure_Pt_object)
 
-                    for _, dirs, _ in os.walk(atom_system_dir_path):
-                        for dir in dirs:
-                            for _, subdirs, _ in os.walk(atom_system_dir_path + '/' + dir):
-                                for subdir in subdirs:
-                                    for _, _, files in os.walk(atom_system_dir_path + '/' + dir + '/' + subdir):
-                                        for filename in files:
-                                            if '.cfg' in filename:
-                                                try:
-                                                    filename_without_extension = filename.rsplit(".", 1)[0]
-                                                    data_object = self.__transform_ASE_object_to_data_object(
-                                                        atom_system_dir_path + '/' + dir + '/' + subdir + '/' + filename)
-                                                    data_object.y = self.extract_formation_energy_value(atom_system_dir_path + '/' + dir + '/' + subdir + '/' + filename_without_extension+"_formation_energy.txt")
-                                                    self.dataset.append(data_object)
-                                                except:
-                                                    print(raw_data_path + '/' + dir + '/' + filename,
-                                                          "could not be converted in torch_geometric.data "
-                                                          "object")
+                for _, dirs, _ in os.walk(atom_system_dir_path):
+                    for dir in dirs:
+                        for _, subdirs, _ in os.walk(atom_system_dir_path + '/' + dir):
+                            for subdir in subdirs:
+                                for _, _, files in os.walk(atom_system_dir_path + '/' + dir + '/' + subdir):
+                                    for filename in files:
+                                        if '.cfg' in filename:
+                                            try:
+                                                filename_without_extension = filename.rsplit(".", 1)[0]
+                                                data_object = self.__transform_ASE_object_to_data_object(
+                                                    atom_system_dir_path + '/' + dir + '/' + subdir + '/' + filename)
+                                                self.dataset.append(data_object)
+                                            except:
+                                                print(raw_data_path + '/' + dir + '/' + filename,
+                                                      "could not be converted in torch_geometric.data "
+                                                      "object")
 
-                                break
+                            break
 
-                        break
+                    break
 
-            if self.dist:
-                torch.distributed.barrier()
+        if self.dist:
+            torch.distributed.barrier()
 
         # scaled features by number of nodes
         self._AbstractRawDataset__scale_features_by_num_nodes()
 
         self._AbstractRawDataset__normalize_dataset()
-
-    def extract_formation_energy_value(self, filename):
-        formation_energy_file = open(filename, 'r')
-        Lines = formation_energy_file.readlines()
-
-        # Strips the newline character
-        for line in Lines:
-            return tensor([float(line.strip())])
 
     def __transform_ASE_object_to_data_object(self, filepath):
         ase_object = read_cfg(filepath)
@@ -106,7 +94,8 @@ class MariiaMultisizeDataset(CFGDataset):
 
         # Strips the newline character
         for line in Lines:
-            data_object.y = tensor([float(line.strip())])
+            num_atoms = data_object.pos.shape[0]
+            data_object.y = tensor([float(line.strip())])/num_atoms
 
         return data_object
 
