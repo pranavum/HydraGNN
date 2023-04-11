@@ -39,7 +39,7 @@ if __name__ == "__main__":
         help="preprocess only. Adios or pickle saving and no train",
     )
     parser.add_argument(
-        "--inputfile", help="input file", type=str, default="eam.json"
+        "--inputfile", help="input file", type=str, default="eam_multiple_size.json"
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(

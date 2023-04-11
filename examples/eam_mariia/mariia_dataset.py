@@ -36,11 +36,9 @@ class MariiaDataset(CFGDataset):
 
         for dataset_type, raw_data_path in self.path_dictionary.items():
             pure_Ni_object = self.__transform_ASE_object_to_data_object(raw_data_path + '/' + 'Ni_ground_state.cfg')
-            pure_Ni_object.y = self.extract_formation_energy_value(raw_data_path + '/' + "Ni_ground_state_formation_energy.txt")
             self.dataset.append(pure_Ni_object)
 
             pure_Pt_object = self.__transform_ASE_object_to_data_object(raw_data_path + '/' + 'Pt_ground_state.cfg')
-            pure_Pt_object.y = self.extract_formation_energy_value(raw_data_path + '/' + "Pt_ground_state_formation_energy.txt")
             self.dataset.append(pure_Pt_object)
 
             for _, dirs, _ in os.walk(raw_data_path):
@@ -54,7 +52,6 @@ class MariiaDataset(CFGDataset):
                                             filename_without_extension = filename.rsplit(".", 1)[0]
                                             data_object = self.__transform_ASE_object_to_data_object(
                                                 raw_data_path + '/' + dir + '/' + subdir + '/' + filename)
-                                            data_object.y = self.extract_formation_energy_value(raw_data_path + '/' + dir + '/' + subdir + '/' + filename_without_extension+"_formation_energy.txt")
                                             self.dataset.append(data_object)
                                         except:
                                             print(raw_data_path + '/' + dir + '/' + filename,
@@ -72,14 +69,6 @@ class MariiaDataset(CFGDataset):
         self._AbstractRawDataset__scale_features_by_num_nodes()
 
         self._AbstractRawDataset__normalize_dataset()
-
-    def extract_formation_energy_value(self, filename):
-        formation_energy_file = open(filename, 'r')
-        Lines = formation_energy_file.readlines()
-
-        # Strips the newline character
-        for line in Lines:
-            return tensor([float(line.strip())])
 
     def __transform_ASE_object_to_data_object(self, filepath):
         ase_object = read_cfg(filepath)
@@ -103,7 +92,8 @@ class MariiaDataset(CFGDataset):
 
         # Strips the newline character
         for line in Lines:
-            data_object.y = tensor([float(line.strip())])
+            num_atoms = data_object.pos.shape[0]
+            data_object.y = tensor([float(line.strip())])/num_atoms
 
         return data_object
 

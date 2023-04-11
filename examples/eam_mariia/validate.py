@@ -147,17 +147,17 @@ if __name__ == "__main__":
 
     training_minmax_graph_feature = []
 
-    with open("small_crystal_dataset/serialized_dataset/NiPt-trainset.pkl", "rb") as f:
+    with open("small_intermediate_crystal_dataset_per_atom/serialized_dataset/NiPt-trainset.pkl", "rb") as f:
         _ = pickle.load(f)
         training_minmax_graph_feature = pickle.load(f)
 
     test_minmax_graph_feature = []
 
-    with open("large_crystal_dataset/serialized_dataset/NiPt-trainset.pkl", "rb") as f:
+    with open("small_intermediate_crystal_dataset_per_atom/serialized_dataset/NiPt-trainset.pkl", "rb") as f:
         _ = pickle.load(f)
         test_minmax_graph_feature = pickle.load(f)
 
-    with open("large_crystal_dataset/serialized_dataset/NiPt-testset.pkl", "rb") as f:
+    with open("large_crystal_dataset_per_atom/serialized_dataset/NiPt-testset.pkl", "rb") as f:
         _ = pickle.load(f)
         _ = pickle.load(f)
         dataset = pickle.load(f)
@@ -165,8 +165,10 @@ if __name__ == "__main__":
     num_samples = len(dataset)
     true_values = []
     predicted_values = []
+    max_error = 0.0
 
     for data_id, data in enumerate(tqdm(dataset)):
+        num_atoms = data.x.shape[0]
         scaled_predicted = model(data.to(get_device()))
         predicted = scaled_predicted[0].item() * (training_minmax_graph_feature[1, 0] - training_minmax_graph_feature[0, 0]) + \
                     training_minmax_graph_feature[0, 0]
@@ -174,14 +176,12 @@ if __name__ == "__main__":
         scaled_true = data.y[0].item()
         true = scaled_true * (test_minmax_graph_feature[1, 0] - test_minmax_graph_feature[0, 0]) + test_minmax_graph_feature[0, 0]
         true_values.append(true)
-        num_atoms = data.x.shape[0]
         MAE = abs(true - predicted)
-        MAE_per_atom = MAE / num_atoms
+        max_error = max(max_error, MAE)
         test_MAE += MAE / num_samples
-        test_MAE_per_atom += MAE_per_atom / num_samples
 
     print("Test MAE: ", test_MAE)
-    print("Test MAE per atom: ", test_MAE_per_atom)
+    print("Maximum error: ", max_error)
 
     hist2d_norm = getcolordensity(true_values, predicted_values)
 
@@ -190,12 +190,21 @@ if __name__ == "__main__":
         true_values, predicted_values, s=8, c=hist2d_norm, vmin=0, vmax=1
     )
     plt.clim(0, 1)
-    ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", color="red")
-    plt.xlim([training_minmax_graph_feature[0, 0], training_minmax_graph_feature[1, 0]])
-    plt.ylim([training_minmax_graph_feature[0, 0], training_minmax_graph_feature[1, 0]])
+    axes_min = min(min(true_values), min(predicted_values))
+    axes_max = max(max(true_values), max(predicted_values))
+    axes_limits = [axes_min, axes_max]
+    #plt.xlim([test_minmax_graph_feature[0, 0], test_minmax_graph_feature[1, 0]])
+    #plt.ylim([test_minmax_graph_feature[0, 0], test_minmax_graph_feature[1, 0]])
+    plt.xlim(axes_limits)
+    plt.ylim(axes_limits)
     plt.colorbar()
-    plt.xlabel("True values")
-    plt.ylabel("Predicted values")
+    plt.xlabel("True values (eV/atom)")
+    plt.ylabel("Predicted values (eV/atom)")
+    plt.title("Formation energy per atom")
+    xticks = ax.get_xticks()
+    ax.set_xticks([-0.25, 0.0, 0.25, 0.50])
+    ax.set_yticks([-0.25, 0.0, 0.25, 0.50])
+    ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", color="red")
     plt.draw()
     plt.tight_layout()
     plt.savefig("./Scatterplot" + ".png", dpi=400)
