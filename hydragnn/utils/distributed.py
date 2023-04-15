@@ -235,7 +235,7 @@ def get_distributed_model(model, verbosity=0, sync_batch_norm=False):
 
 def print_peak_memory(verbosity_level, prefix):
     # FIXME: this will have to change when the code can run on AMD gpus
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() and verbosity_level >= 4:
         device = get_device()
         print_distributed(
             verbosity_level,
