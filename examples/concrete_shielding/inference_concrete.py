@@ -30,6 +30,7 @@ from hydragnn.models.create import create_model_config
 from hydragnn.utils.config_utils import (
     update_config,
     get_log_name_config,
+    save_config
 )
 
 import numpy as np
@@ -103,6 +104,8 @@ for irun in range(1, 2):
         )
 
         config = update_config(config, train_loader, val_loader, test_loader)
+
+        save_config(config, "concrete_shielding_fullx", path=CaseDir)
 
         model = create_model_config(
             config=config["NeuralNetwork"],
