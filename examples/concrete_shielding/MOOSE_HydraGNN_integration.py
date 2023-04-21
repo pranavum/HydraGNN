@@ -34,6 +34,7 @@ def interrogate_hydragnn_model(mesh_file, input_features_numpy_array):
         verbosity=config["Verbosity"]["level"],
     )
 
+    world_size, world_rank = setup_ddp()
     model = torch.nn.parallel.DistributedDataParallel(
         model
     )
@@ -53,10 +54,15 @@ def interrogate_hydragnn_model(mesh_file, input_features_numpy_array):
     prediction_torch = torch.cat([prediction_list[0], prediction_list[1]], dim=1)
 
     # Remap predictions back to the physical domain
-    prediction_physical_domain = torch.matmul(prediction_torch, torch.diag(1. / maximum_output))
+    prediction_physical_domain = torch.matmul(prediction_torch, torch.diag(1. * maximum_output))
+
+    node_ID = torch.Tensor([i for i in range(3321)])
+    node_ID=node_ID.unsqueeze(1)
+
+    prediction_physical_domain_with_nodeID = torch.cat([node_ID, prediction_physical_domain], dim=1)
 
     # Convert Pytorch tensor into numpy arracy that can be handles by C++ wrapper for MOOSE
-    numpy_prediction = prediction_physical_domain.detach().numpy()
+    numpy_prediction = prediction_physical_domain_with_nodeID.detach().numpy()
 
     return numpy_prediction
 
