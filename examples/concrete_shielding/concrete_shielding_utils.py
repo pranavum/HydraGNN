@@ -33,8 +33,9 @@ def normalize_input(data, input_scaling_tensor):
 
 def normalize_log_scale_input(data, input_scaling_tensor):
     assert data.x.shape[1] == input_scaling_tensor.shape[0]
-    data.x[:, [0, 2, 3, 4]] = torch.matmul(data.x[:, [0, 2, 3, 4]], torch.diag(1. / input_scaling_tensor[[0, 2, 3, 4]]))
-    data.x[:, [1]] = torch.log(data.x[:, [1]] + 1)
+    data.x[:, [0, 1, 3, 4, 5]] = torch.matmul(data.x[:, [0, 2, 3, 4]], torch.diag(1. / input_scaling_tensor[[0, 2, 3, 4]]))
+    # Apply log scaling to fluence field
+    data.x[:, [2]] = torch.log(data.x[:, [2]] + 1)
 
     return data
 
@@ -81,6 +82,7 @@ def read_mesh_coordinates_and_nodal_features_from_csv_file(time_step_index, moos
 
     absolute_path = os.path.abspath(os.getcwd())
     df = pd.read_csv(absolute_path + '/' + file_relative_path)
+    torch_time = torch.tensor(df['Time']).unsqueeze(1).float()
     x = torch.tensor(df['Points:0']).unsqueeze(1).float()
     y = torch.tensor(df['Points:1']).unsqueeze(1).float()
     z = torch.tensor(df['Points:2']).unsqueeze(1).float()
@@ -95,7 +97,7 @@ def read_mesh_coordinates_and_nodal_features_from_csv_file(time_step_index, moos
     torch_bc_z = torch.tensor(df['BC_z']).unsqueeze(1).float()
 
     #return torch_coordinates, torch_temperature, torch_fluence, torch_axial_stress, torch_hoop_stress
-    return torch_coordinates, torch_temperature, torch_fluence, torch_hoop_stress, torch_bc_r, torch_bc_z
+    return torch_coordinates, torch_time, torch_temperature, torch_fluence, torch_hoop_stress, torch_bc_r, torch_bc_z
 
 
 def read_node_information_for_time_step(time_step_index, vertex_index):
@@ -116,7 +118,7 @@ def read_node_information_for_time_step(time_step_index, vertex_index):
 def generate_graphdata(time_step_index):
     #torch_coordinates, torch_temperature, torch_fluence, torch_axial_stress, torch_hoop_stress = read_mesh_coordinates_and_nodal_features_from_csv_file(
     #    time_step_index)
-    torch_coordinates, torch_temperature, torch_fluence, torch_hoop_stress, torch_bc_r, torch_bc_z = read_mesh_coordinates_and_nodal_features_from_csv_file(
+    torch_coordinates, torch_time, torch_temperature, torch_fluence, torch_hoop_stress, torch_bc_r, torch_bc_z = read_mesh_coordinates_and_nodal_features_from_csv_file(
         time_step_index)
 
     average_linear_expansion_list = [read_node_information_for_time_step(time_step_index, vertex_index)[0] for
@@ -135,7 +137,7 @@ def generate_graphdata(time_step_index):
     compute_edges_lengths = Distance(norm=False, cat=True)
 
     #x = torch.cat([torch_temperature, torch_fluence, torch_axial_stress, torch_hoop_stress], dim=1)
-    x = torch.cat([torch_temperature, torch_fluence, torch_hoop_stress, torch_bc_r, torch_bc_z], dim=1)
+    x = torch.cat([torch_time, torch_temperature, torch_fluence, torch_hoop_stress, torch_bc_r, torch_bc_z], dim=1)
     y = torch.cat([torch_average_linear_expansion, torch_average_damage], dim=0)
 
     data_object = torch_geometric.data.data.Data(x=x, y=y)
