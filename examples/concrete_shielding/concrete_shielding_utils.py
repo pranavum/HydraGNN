@@ -110,7 +110,7 @@ def read_node_information_for_time_step(time_step_index, vertex_index):
     average_linear_expansion = df['average_linear_expansion'][time_step_index]
     #average_damage_hcp_x = df['average_damage_hcp_x'][time_step_index]
     #average_damage_hcp_y = df['average_damage_hcp_y'][time_step_index]
-    average_damage_hcp = df['average_damage_hcp'][time_step_index]
+    average_damage_hcp = df['average_damage_hcp_0'][time_step_index]
 
     return average_linear_expansion, average_damage_hcp
 
