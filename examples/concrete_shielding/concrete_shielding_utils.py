@@ -103,7 +103,7 @@ def read_mesh_coordinates_and_nodal_features_from_csv_file(time_step_index, moos
 def read_node_information_for_time_step(time_step_index, vertex_index):
     #file_relative_path = 'examples/concrete_shielding/dataset/concrete_shielding/training_data' + '/' + 'workdir.' + str(
     #    vertex_index) + '/' + 'moose_out.csv'
-    file_relative_path = 'dataset/concrete_shielding' + '/' + 'workdir.' + str(
+    file_relative_path = 'dataset/concrete_shielding' + '/simulation_results/' + 'workdir.' + str(
         vertex_index) + '/' + 'moose_out.csv'
     absolute_path = os.path.abspath(os.getcwd())
     df = pd.read_csv(absolute_path + '/' + file_relative_path)
