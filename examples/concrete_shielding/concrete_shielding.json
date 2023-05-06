@@ -20,7 +20,7 @@
             "task_weights": [1.0, 1.0]
         },
         "Variables_of_interest": {
-            "input_node_features": [0,1,2,3,4],
+            "input_node_features": [0,1,2,3,4,5],
             "output_index": [0,1],
             "type": ["node", "node"],
             "denormalize_output": false
