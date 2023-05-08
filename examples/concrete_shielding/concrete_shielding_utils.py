@@ -33,7 +33,7 @@ def normalize_input(data, input_scaling_tensor):
 
 def normalize_log_scale_input(data, input_scaling_tensor):
     assert data.x.shape[1] == input_scaling_tensor.shape[0]
-    data.x[:, [0, 1, 3, 4, 5]] = torch.matmul(data.x[:, [0, 2, 3, 4]], torch.diag(1. / input_scaling_tensor[[0, 2, 3, 4]]))
+    data.x[:, [0, 1, 3, 4, 5]] = torch.matmul(data.x[:, [0, 1, 3, 4, 5]], torch.diag(1. / input_scaling_tensor[[0, 1, 3, 4, 5]]))
     # Apply log scaling to fluence field
     data.x[:, [2]] = torch.log(data.x[:, [2]] + 1)
 
