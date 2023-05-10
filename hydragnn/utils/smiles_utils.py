@@ -10,9 +10,6 @@ import torch.nn.functional as F
 from torch_scatter import scatter
 from torch_geometric.data import Data
 import hydragnn
-import random
-
-from .atomicdescriptors import atomicdescriptors
 
 ##################################################################################################################
 ##################################################################################################################
@@ -47,20 +44,16 @@ def generate_graphdata_from_smilestr(simlestr, ytarget, types, var_config=None):
     return data
 
 
-def generate_graphdata_from_rdkit_molecule(mol, ytarget, types, var_config=None):
+def generate_graphdata_from_rdkit_molecule(
+    mol, ytarget, types, atomicdescriptor=None, var_config=None
+):
     bonds = {BT.SINGLE: 0, BT.DOUBLE: 1, BT.TRIPLE: 2, BT.AROMATIC: 3}
 
     mol = Chem.AddHs(mol)
     N = mol.GetNumAtoms()
 
-    # atomic descriptors
-    atomicdescriptor_onehot = atomicdescriptors(
-        "./embedding_onehot.json",
-        overwritten=True,
-        one_hot=True,
-    )
-
-    valence_electrons = atomicdescriptor_onehot.get_valence_electrons()
+    if atomicdescriptor is not None:
+        valence_electrons = atomicdescriptor.get_valence_electrons()
 
     type_idx = []
     atomic_number = []
@@ -68,7 +61,6 @@ def generate_graphdata_from_rdkit_molecule(mol, ytarget, types, var_config=None)
     sp = []
     sp2 = []
     sp3 = []
-    valence_electrons_list = []
     for atom in mol.GetAtoms():
         type_idx.append(types[atom.GetSymbol()])
         atomic_number.append(atom.GetAtomicNum())
@@ -77,7 +69,6 @@ def generate_graphdata_from_rdkit_molecule(mol, ytarget, types, var_config=None)
         sp.append(1 if hybridization == HybridizationType.SP else 0)
         sp2.append(1 if hybridization == HybridizationType.SP2 else 0)
         sp3.append(1 if hybridization == HybridizationType.SP3 else 0)
-        valence_electrons_list.append(valence_electrons[types[atom.GetSymbol()]].item())
 
     z = torch.tensor(atomic_number, dtype=torch.long)
 
@@ -101,11 +92,27 @@ def generate_graphdata_from_rdkit_molecule(mol, ytarget, types, var_config=None)
     num_hs = scatter(hs[row], col, dim_size=N).tolist()
 
     x1 = F.one_hot(torch.tensor(type_idx), num_classes=len(types))
-    x2 = (
-        torch.tensor([atomic_number, valence_electrons_list, aromatic, sp, sp2, sp3, num_hs], dtype=torch.float)
-        .t()
-        .contiguous()
-    )
+    if atomicdescriptor is None:
+        x2 = (
+            torch.tensor(
+                [atomic_number, aromatic, sp, sp2, sp3, num_hs], dtype=torch.float
+            )
+            .t()
+            .contiguous()
+        )
+    else:
+        valence_electrons_list = []
+        for atom in mol.GetAtoms():
+            valence_electrons_list.append(
+                valence_electrons[types[atom.GetSymbol()]].item()
+            )
+        x2 = (
+            torch.tensor(
+                [atomic_number, valence_electrons_list, aromatic, sp, sp2, sp3, num_hs], dtype=torch.float
+            )
+            .t()
+            .contiguous()
+        )
 
     x = torch.cat([x1.to(torch.float), x2], dim=-1)
     y = ytarget  # .squeeze()

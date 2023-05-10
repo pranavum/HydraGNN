@@ -9,6 +9,7 @@ from hydragnn.utils.smiles_utils import (
     get_node_attribute_name,
     generate_graphdata_from_rdkit_molecule,
 )
+from hydragnn.utils.atomicdescriptors import atomicdescriptors
 
 from ase import io
 
@@ -27,6 +28,14 @@ class DFTB_UV_Dataset:
             if config["Dataset"]["graph_features"]["name"] is not None
             else None
         )
+
+        # atomic descriptors
+        self.atomicdescriptor = atomicdescriptors(
+            "./embedding_onehot.json",
+            overwritten=True,
+            one_hot=True,
+        )
+
         self.graph_feature_dim = config["Dataset"]["graph_features"]["dim"]
         self.raw_dataset_name = config["Dataset"]["name"]
         self.data_format = config["Dataset"]["format"]
@@ -101,7 +110,7 @@ class DFTB_UV_Dataset:
                 for line in input_file:
                     spectrum_energies.append(float(line.strip().split()[1]))
 
-            data_object = generate_graphdata_from_rdkit_molecule(mol, torch.tensor(spectrum_energies), dftb_node_types)
+            data_object = generate_graphdata_from_rdkit_molecule(mol, torch.tensor(spectrum_energies), dftb_node_types, self.atomicdescriptor)
             atoms = io.read(raw_data_path + '/' + dir + '/' + 'geo_end.xyz')
             data_object.pos = torch.from_numpy(atoms.positions)
             spherical_transform = Spherical(norm=False)
