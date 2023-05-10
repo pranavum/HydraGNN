@@ -6,6 +6,7 @@
     "Architecture": {
       "model_type": "PNA",
       "max_neighbours": 20,
+      "edge_features": ["single_bond", "double_bond", "triple_bond", "aromatic_bond", "bond_length", "planar_angle", "azimutal_angle"],
       "hidden_dim": 200,
       "num_conv_layers": 6,
       "output_heads": {

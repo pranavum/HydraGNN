@@ -3,11 +3,14 @@ import sys
 import torch
 from torch import tensor
 from torch_geometric.data import Data
+from torch_geometric.transforms import Spherical
 from hydragnn.utils.abstractrawdataset import AbstractRawDataset
 from hydragnn.utils.smiles_utils import (
     get_node_attribute_name,
     generate_graphdata_from_rdkit_molecule,
 )
+
+from ase import io
 
 from rdkit.Chem.rdmolfiles import MolFromPDBFile
 
@@ -99,6 +102,10 @@ class DFTB_UV_Dataset:
                     spectrum_energies.append(float(line.strip().split()[1]))
 
             data_object = generate_graphdata_from_rdkit_molecule(mol, torch.tensor(spectrum_energies), dftb_node_types)
+            atoms = io.read(raw_data_path + '/' + dir + '/' + 'geo_end.xyz')
+            data_object.pos = torch.from_numpy(atoms.positions)
+            spherical_transform = Spherical(norm=False)
+            data_object = spherical_transform(data_object)
             data_object.ID = dir.replace('mol_', '')
 
         except:

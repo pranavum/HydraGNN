@@ -4,7 +4,7 @@
   },
   "Dataset": {
     "name": "GDB-9-Ex",
-    "path": {"total": "./dataset/dftb_gdb9_electronic_excitation_spectrum"},
+    "path": {"total": "./dataset/GDB-9-Ex-TDDFTB"},
     "format": "EXC-DAT",
     "graph_features":{
       "name": [ "spectrum"],
@@ -16,6 +16,7 @@
     "Architecture": {
       "model_type": "PNA",
       "max_neighbours": 20,
+      "edge_features": ["single_bond", "double_bond", "triple_bond", "aromatic_bond", "bond_length", "planar_angle", "azimutal_angle"],
       "radius": 1000,
       "hidden_dim": 200,
       "num_conv_layers": 6,
@@ -47,7 +48,8 @@
         8,
         9,
         10,
-        11
+        11,
+        12
       ],
       "output_index": [
         0
