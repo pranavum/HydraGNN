@@ -13,7 +13,7 @@
             "output_heads": {
                  "node": {
                     "num_headlayers": 3,
-                    "dim_headlayers": [1000,1000,1000],
+                    "dim_headlayers": [3000,3000,3000],
                     "type": "mlp"
                 }
             },
