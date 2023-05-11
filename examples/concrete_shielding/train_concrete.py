@@ -58,6 +58,7 @@ def concrete_datasets_load(datadir_path, seed=None, frac=[0.9, 0.05, 0.05]):
     print("Total:", len(times_all))
 
     a = list(range(len(times_all)))
+    a = random.sample(a, len(a))
     ix0, ix1, ix2 = np.split(
         a, [int(frac[0] * len(a)), int((frac[0] + frac[1]) * len(a))]
     )

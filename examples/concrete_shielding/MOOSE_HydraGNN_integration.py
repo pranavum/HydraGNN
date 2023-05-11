@@ -72,7 +72,7 @@ if __name__ == "__main__":
     mesh_file = "PointData_0.csv"
     dataframe = numpy.genfromtxt("example_input_array.csv",
                         delimiter=",", dtype=float)
-    numpy_input_features = dataframe[:, [1, 2, 3, 4, 5]]
+    numpy_input_features = dataframe[:, [1, 2, 3, 4, 5, 6]]
     numpy_prediction = interrogate_hydragnn_model(mesh_file, numpy_input_features)
     print(numpy_input_features)
 
