@@ -45,15 +45,12 @@ def generate_graphdata_from_smilestr(simlestr, ytarget, types, var_config=None):
 
 
 def generate_graphdata_from_rdkit_molecule(
-    mol, ytarget, types, atomicdescriptor=None, var_config=None
+    mol, ytarget, types, atomic_descriptors_list=[], var_config=None
 ):
     bonds = {BT.SINGLE: 0, BT.DOUBLE: 1, BT.TRIPLE: 2, BT.AROMATIC: 3}
 
     mol = Chem.AddHs(mol)
     N = mol.GetNumAtoms()
-
-    if atomicdescriptor is not None:
-        valence_electrons = atomicdescriptor.get_valence_electrons()
 
     type_idx = []
     atomic_number = []
@@ -92,27 +89,13 @@ def generate_graphdata_from_rdkit_molecule(
     num_hs = scatter(hs[row], col, dim_size=N).tolist()
 
     x1 = F.one_hot(torch.tensor(type_idx), num_classes=len(types))
-    if atomicdescriptor is None:
-        x2 = (
-            torch.tensor(
-                [atomic_number, aromatic, sp, sp2, sp3, num_hs], dtype=torch.float
-            )
-            .t()
-            .contiguous()
+    x2 = (
+        torch.tensor(
+            [atomic_number, atomic_descriptors_list, aromatic, sp, sp2, sp3, num_hs], dtype=torch.float
         )
-    else:
-        valence_electrons_list = []
-        for atom in mol.GetAtoms():
-            valence_electrons_list.append(
-                valence_electrons[types[atom.GetSymbol()]].item()
-            )
-        x2 = (
-            torch.tensor(
-                [atomic_number, valence_electrons_list, aromatic, sp, sp2, sp3, num_hs], dtype=torch.float
-            )
-            .t()
-            .contiguous()
-        )
+        .t()
+        .contiguous()
+    )
 
     x = torch.cat([x1.to(torch.float), x2], dim=-1)
     y = ytarget  # .squeeze()

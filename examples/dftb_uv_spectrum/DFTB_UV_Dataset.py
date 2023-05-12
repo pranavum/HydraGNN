@@ -30,11 +30,13 @@ class DFTB_UV_Dataset:
         )
 
         # atomic descriptors
-        self.atomicdescriptor = atomicdescriptors(
+        atomicdescriptor = atomicdescriptors(
             "./embedding_onehot.json",
             overwritten=True,
+            element_types=list(dftb_node_types.keys()),
             one_hot=True,
         )
+        self.valence_electrons = atomicdescriptor.get_valence_electrons()
 
         self.graph_feature_dim = config["Dataset"]["graph_features"]["dim"]
         self.raw_dataset_name = config["Dataset"]["name"]
@@ -110,7 +112,13 @@ class DFTB_UV_Dataset:
                 for line in input_file:
                     spectrum_energies.append(float(line.strip().split()[1]))
 
-            data_object = generate_graphdata_from_rdkit_molecule(mol, torch.tensor(spectrum_energies), dftb_node_types, self.atomicdescriptor)
+            valence_electrons_list = []
+            for atom in mol.GetAtoms():
+                valence_electrons_list.append(
+                    self.valence_electrons[dftb_node_types[atom.GetSymbol()]].item()
+                )
+
+            data_object = generate_graphdata_from_rdkit_molecule(mol, torch.tensor(spectrum_energies), dftb_node_types, valence_electrons_list)
             atoms = io.read(raw_data_path + '/' + dir + '/' + 'geo_end.xyz')
             data_object.pos = torch.from_numpy(atoms.positions)
             spherical_transform = Spherical(norm=False)
@@ -118,7 +126,7 @@ class DFTB_UV_Dataset:
             data_object.ID = dir.replace('mol_', '')
 
         except:
-            pass
+            print(f"Graph sample not created for {dir}")
 
         """
         # file not found -> exit here
