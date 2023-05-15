@@ -123,6 +123,7 @@ class DFTB_UV_Dataset:
             data_object.pos = torch.from_numpy(atoms.positions)
             spherical_transform = Spherical(norm=False)
             data_object = spherical_transform(data_object)
+            data_object.edge_attr = data_object.edge_attr.to(torch.float32)
             data_object.ID = dir.replace('mol_', '')
 
         except:
