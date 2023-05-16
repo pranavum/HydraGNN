@@ -69,7 +69,8 @@
       "startfrom": "existing_model",
       "Optimizer": {
         "learning_rate": 0.001
-      }
+      },
+      "loss_function_type": "mae_TV1D"
     }
   }
 }

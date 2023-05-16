@@ -36,6 +36,8 @@ def loss_function_selection(loss_function_string: str):
         return torch.nn.SmoothL1Loss
     elif loss_function_string == "rmse":
         return lambda x, y: torch.sqrt(torch.nn.functional.mse_loss(x, y))
+    elif loss_function_string == "mae_TV1D":
+        return lambda x, y: torch.nn.functional.l1_loss(x, y) + 1e-3*torch.abs(torch.diff(torch.abs(x-y))).sum()
 
 
 def save_model(model, optimizer, name, path="./logs/"):
