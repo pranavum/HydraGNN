@@ -37,6 +37,7 @@ class DFTB_UV_Dataset:
             one_hot=True,
         )
         self.valence_electrons = atomicdescriptor.get_valence_electrons()
+        self.electron_affinity = atomicdescriptor.get_electron_affinity()
 
         self.graph_feature_dim = config["Dataset"]["graph_features"]["dim"]
         self.raw_dataset_name = config["Dataset"]["name"]
@@ -117,8 +118,23 @@ class DFTB_UV_Dataset:
                 valence_electrons_list.append(
                     self.valence_electrons[dftb_node_types[atom.GetSymbol()]].item()
                 )
+            electron_affinity_list = []
+            for atom in mol.GetAtoms():
+                electron_affinity_list.append(
+                    self.electron_affinity[dftb_node_types[atom.GetSymbol()]].item()
+                )
 
-            data_object = generate_graphdata_from_rdkit_molecule(mol, torch.tensor(spectrum_energies), dftb_node_types, valence_electrons_list)
+            atomic_descriptors_list = [valence_electrons_list, electron_affinity_list]
+            num_manually_constructed_atomic_descriptors = len({len(i) for i in atomic_descriptors_list})
+
+            # The list is empty if there are no atomic descirptors manually constructed, otherwise it shoulb have length=1
+            assert num_manually_constructed_atomic_descriptors <= 1, "manually constructed lists of atomic descriptors are not consistent in length"
+
+            if num_manually_constructed_atomic_descriptors == 1:
+                atomicdescriptors_torch_tensor = torch.cat([torch.tensor([descriptor]) for descriptor in atomic_descriptors_list],
+                               dim=0).t().contiguous()
+
+            data_object = generate_graphdata_from_rdkit_molecule(mol, torch.tensor(spectrum_energies), dftb_node_types, atomicdescriptors_torch_tensor)
             atoms = io.read(raw_data_path + '/' + dir + '/' + 'geo_end.xyz')
             data_object.pos = torch.from_numpy(atoms.positions)
             spherical_transform = Spherical(norm=False)
