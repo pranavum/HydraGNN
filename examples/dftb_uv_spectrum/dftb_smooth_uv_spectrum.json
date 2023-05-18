@@ -14,8 +14,10 @@
   },
   "NeuralNetwork": {
     "Architecture": {
-      "model_type": "PNA",
+      "model_type": "SchNet",
       "max_neighbours": 20,
+      "num_gaussians": 50,
+      "num_filters": 50,
       "edge_features": ["single_bond", "double_bond", "triple_bond", "aromatic_bond", "bond_length", "planar_angle", "azimutal_angle"],
       "radius": 1000,
       "hidden_dim": 200,
@@ -49,7 +51,10 @@
         9,
         10,
         11,
-        12
+        12,
+        13,
+        14,
+        15
       ],
       "output_index": [
         0
@@ -69,8 +74,7 @@
       "startfrom": "existing_model",
       "Optimizer": {
         "learning_rate": 0.001
-      },
-      "loss_function_type": "mae_TV1D"
+      }
     }
   }
 }

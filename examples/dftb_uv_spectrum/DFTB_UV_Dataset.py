@@ -38,6 +38,8 @@ class DFTB_UV_Dataset:
         )
         self.valence_electrons = atomicdescriptor.get_valence_electrons()
         self.electron_affinity = atomicdescriptor.get_electron_affinity()
+        self.atomic_weight = atomicdescriptor.get_atomic_weight()
+        self.ion_energies = atomicdescriptor.get_ionenergies()
 
         self.graph_feature_dim = config["Dataset"]["graph_features"]["dim"]
         self.raw_dataset_name = config["Dataset"]["name"]
@@ -123,8 +125,18 @@ class DFTB_UV_Dataset:
                 electron_affinity_list.append(
                     self.electron_affinity[dftb_node_types[atom.GetSymbol()]].item()
                 )
+            atomic_weight_list = []
+            for atom in mol.GetAtoms():
+                atomic_weight_list.append(
+                    self.atomic_weight[dftb_node_types[atom.GetSymbol()]].item()
+                )
+            ion_energies_list = []
+            for atom in mol.GetAtoms():
+                ion_energies_list.append(
+                    self.ion_energies[dftb_node_types[atom.GetSymbol()]].item()
+                )
 
-            atomic_descriptors_list = [valence_electrons_list, electron_affinity_list]
+            atomic_descriptors_list = [valence_electrons_list, electron_affinity_list, atomic_weight_list, ion_energies_list]
             num_manually_constructed_atomic_descriptors = len({len(i) for i in atomic_descriptors_list})
 
             # The list is empty if there are no atomic descirptors manually constructed, otherwise it shoulb have length=1
