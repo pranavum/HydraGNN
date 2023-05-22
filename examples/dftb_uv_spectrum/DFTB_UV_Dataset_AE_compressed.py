@@ -10,6 +10,7 @@ from hydragnn.utils.smiles_utils import (
     generate_graphdata_from_rdkit_molecule,
 )
 from hydragnn.utils.atomicdescriptors import atomicdescriptors
+from ae_vibrational_spectrum.reduction_models import autoencoder
 
 from ase import io
 
@@ -20,7 +21,7 @@ from rdkit.Chem.rdmolfiles import MolFromPDBFile
 dftb_node_types = {"C": 0, "F": 1, "H": 2, "N": 3, "O": 4, "S": 5}
 
 
-class DFTB_UV_Dataset:
+class DFTB_UV_Dataset_AE_compressed:
     def __init__(self, config, dist=False, sampling=None):
         # self.serial_data_name_list = []
         self.graph_feature_name = (
@@ -28,6 +29,12 @@ class DFTB_UV_Dataset:
             if config["Dataset"]["graph_features"]["name"] is not None
             else None
         )
+        self.ae_model = autoencoder(input_dim=37500, reduced_dim=50, hidden_dim_ae=[250], PCA=False)
+        log_model = "nz-" + str(50) + "-PCA-" + str(False)
+        model_dir = os.path.join("ae_vibrational_spectrum/logs_GDB-9-Ex-TDDFTB/", log_model)
+        device = next(self.ae_model.parameters()).device
+        path_name = os.path.join(model_dir, "model.pk")
+        self.ae_model.load_state_dict(torch.load(path_name, map_location=device))
 
         # atomic descriptors
         atomicdescriptor = atomicdescriptors(
@@ -146,7 +153,12 @@ class DFTB_UV_Dataset:
                 atomicdescriptors_torch_tensor = torch.cat([torch.tensor([descriptor]) for descriptor in atomic_descriptors_list],
                                dim=0).t().contiguous()
 
-            data_object = generate_graphdata_from_rdkit_molecule(mol, torch.tensor(spectrum_energies), dftb_node_types, atomicdescriptors_torch_tensor)
+            full_spectrum = torch.tensor(spectrum_energies)
+
+            # compress representation of the spectrum
+            compressed_spectrum = self.ae_model.encoder(full_spectrum)
+
+            data_object = generate_graphdata_from_rdkit_molecule(mol, compressed_spectrum, dftb_node_types, atomicdescriptors_torch_tensor)
             atoms = io.read(raw_data_path + '/' + dir + '/' + 'geo_end.xyz')
             data_object.pos = torch.from_numpy(atoms.positions)
             spherical_transform = Spherical(norm=False)
@@ -154,6 +166,7 @@ class DFTB_UV_Dataset:
             data_object.pos = data_object.pos.to(torch.float32)
             data_object.x = data_object.x.to(torch.float32)
             data_object.edge_attr = data_object.edge_attr.to(torch.float32)
+            data_object.full_spectrum = full_spectrum
             data_object.ID = dir.replace('mol_', '')
 
         except:

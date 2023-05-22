@@ -10,7 +10,7 @@ import hydragnn
 from hydragnn.utils.time_utils import Timer
 from hydragnn.utils.config_utils import get_log_name_config
 from hydragnn.utils.model import print_model
-from DFTB_UV_Dataset import DFTB_UV_Dataset
+from DFTB_UV_Dataset_AE_compressed import DFTB_UV_Dataset_AE_compressed
 from hydragnn.utils.serializeddataset import SerializedWriter, SerializedDataset
 from hydragnn.preprocess.load_data import split_dataset
 from hydragnn.utils.print_utils import log
@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     if not args.loadexistingsplit and rank == 0:
         ## Only rank=0 is enough for pre-processing
-        total = DFTB_UV_Dataset(config)
+        total = DFTB_UV_Dataset_AE_compressed(config)
 
         trainset, valset, testset = split_dataset(
             dataset=total,
