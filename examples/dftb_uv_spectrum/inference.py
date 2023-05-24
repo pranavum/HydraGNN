@@ -102,9 +102,9 @@ for irun in range(1, 2):
         compressed_prediction = model(test_data.to(get_device()))[0]
         prediction = ae_model.decoder(compressed_prediction).squeeze().detach().to('cpu')
         true_values_AE = ae_model.decoder(test_data.to(get_device()).y).detach().to('cpu')
+        ax.plot(bins, test_data.to(get_device()).full_spectrum.detach().to('cpu'), '--', label="TD-DFTB+_original", linewidth=5)
         ax.plot(bins, true_values_AE, label="TD-DFTB+_AE", linewidth=5)
-        ax.plot(bins, test_data.to(get_device()).full_spectrum.detach().to('cpu'), label="TD-DFTB+_original", linewidth=5)
-        ax.plot(bins, prediction, label="HydraGNN", linewidth=2)
+        ax.plot(bins, prediction, label="HydraGNN", linewidth=5)
         plt.title("molecule ID: "+mol_ID[sample_id])
         plt.legend()
         plt.draw()
