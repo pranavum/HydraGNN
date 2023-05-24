@@ -30,7 +30,7 @@ import torch
 
 from ae_vibrational_spectrum.reduction_models import autoencoder
 
-ae_model = autoencoder(input_dim=37500, reduced_dim=50, hidden_dim_ae=[250], PCA=False)
+ae_model = autoencoder(input_dim=37500, reduced_dim=50, hidden_dim_ae=[250], PCA=False).to(get_device())
 log_model = "nz-" + str(50) + "-PCA-" + str(False)
 model_dir = os.path.join("ae_vibrational_spectrum/logs_GDB-9-Ex-TDDFTB/", log_model)
 device = next(ae_model.parameters()).device
