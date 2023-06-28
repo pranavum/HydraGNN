@@ -83,9 +83,13 @@ class MariiaMultisizeDataset(CFGDataset):
         data_object.supercell_size = tensor(ase_object.cell.array).float()
         data_object.pos = tensor(ase_object.arrays["positions"]).float()
         proton_numbers = np.expand_dims(ase_object.arrays["numbers"], axis=1)
+        c_peratom = np.expand_dims(ase_object.arrays["c_peratom"], axis=1)
         masses = np.expand_dims(ase_object.arrays["masses"], axis=1)
+        fx = np.expand_dims(ase_object.arrays["fx"], axis=1)
+        fy = np.expand_dims(ase_object.arrays["fy"], axis=1)
+        fz = np.expand_dims(ase_object.arrays["fz"], axis=1)
         node_feature_matrix = np.concatenate(
-            (proton_numbers, masses), axis=1
+            (proton_numbers, c_peratom, masses, fx, fy, fz), axis=1
         )
         data_object.x = tensor(node_feature_matrix).float()
 
