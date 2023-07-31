@@ -164,8 +164,8 @@ if __name__ == "__main__":
         node_output_feature_names[item]
         for ihead, item in enumerate(var_config["output_index"])
     ]
-    var_config["input_node_feature_names"] = ["temperature", "fluence", "axial_stress", "hoop_stress"]
-    var_config["input_node_feature_dims"] = [1, 1, 1, 1]
+    var_config["input_node_feature_names"] = ["time", "temperature", "fluence", "hoop_stress", "bc_r", "bc_z"]
+    var_config["input_node_feature_dims"] = [1, 1, 1, 1, 1, 1]
     ##################################################################################################################
     # Always initialize for multi-rank training.
     comm_size, rank = hydragnn.utils.setup_ddp()
