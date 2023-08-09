@@ -13,7 +13,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from torch.nn import ModuleList
-from torch_geometric.nn import GINConv, BatchNorm
+from torch_geometric.nn import GINConv, BatchNorm, Sequential
 
 from .Base import Base
 
@@ -23,7 +23,7 @@ class GINStack(Base):
         super().__init__(*args, **kwargs)
 
     def get_conv(self, input_dim, output_dim):
-        return GINConv(
+        gin = GINConv(
             nn.Sequential(
                 nn.Linear(input_dim, output_dim),
                 nn.ReLU(),
@@ -31,6 +31,12 @@ class GINStack(Base):
             ),
             eps=100.0,
             train_eps=True,
+        )
+        return Sequential(
+            "x, pos",
+            [
+                (gin, "x -> x"),
+            ],
         )
 
     def __str__(self):

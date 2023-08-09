@@ -23,9 +23,15 @@ class SAGEStack(Base):
         super().__init__(*args, **kwargs)
 
     def get_conv(self, input_dim, output_dim):
-        return SAGEConv(
+        sage = SAGEConv(
             in_channels=input_dim,
             out_channels=output_dim,
+        )
+        return Sequential(
+            "x, pos",
+            [
+                (sage, "x -> x"),
+            ],
         )
 
     def __str__(self):

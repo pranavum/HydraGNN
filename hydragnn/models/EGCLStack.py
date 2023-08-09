@@ -39,9 +39,9 @@ class EGCLStack(Base):
             edge_attr_dim=self.edge_dim,
         )
         return Sequential(
-            "x, edge_index, coord, edge_attr",
+            "x, pos, edge_index, edge_attr",
             [
-                (egcl, "x, edge_index, coord, edge_attr -> x"),
+                (egcl, "x, pos, edge_index, edge_attr -> x"),
             ],
         )
 
@@ -49,13 +49,11 @@ class EGCLStack(Base):
         if self.edge_dim > 0:
             conv_args = {
                 "edge_index": data.edge_index,
-                "coord": data.pos,
                 "edge_attr": data.edge_attr,
             }
         else:
             conv_args = {
                 "edge_index": data.edge_index,
-                "coord": data.pos,
                 "edge_attr": None,
             }
 
@@ -198,7 +196,7 @@ class E_GCL(nn.Module):
 
         return radial, coord_diff
 
-    def forward(self, x, edge_index, coord, edge_attr, node_attr=None):
+    def forward(self, x, coord, edge_index, edge_attr, node_attr=None):
         row, col = edge_index
         radial, coord_diff = self.coord2radial(edge_index, coord)
         # Message Passing

@@ -30,10 +30,16 @@ class MFCStack(Base):
         super().__init__(*args, **kwargs)
 
     def get_conv(self, input_dim, output_dim):
-        return MFConv(
+        mfc = MFConv(
             in_channels=input_dim,
             out_channels=output_dim,
             max_degree=self.max_degree,
+        )
+        return Sequential(
+            "x, pos",
+            [
+                (mfc, "x -> x"),
+            ],
         )
 
     def __str__(self):

@@ -38,7 +38,7 @@ class PNAStack(Base):
         super().__init__(*args, **kwargs)
 
     def get_conv(self, input_dim, output_dim):
-        return PNAConv(
+        pna = PNAConv(
             in_channels=input_dim,
             out_channels=output_dim,
             aggregators=self.aggregators,
@@ -48,6 +48,12 @@ class PNAStack(Base):
             pre_layers=1,
             post_layers=1,
             divide_input=False,
+        )
+        return Sequential(
+            "x, pos",
+            [
+                (cgcnn, "x -> x"),
+            ],
         )
 
     def __str__(self):

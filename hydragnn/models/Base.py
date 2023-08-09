@@ -243,11 +243,12 @@ class Base(Module):
 
     def forward(self, data):
         x = data.x
+        pos = data.pos
 
         ### encoder part ####
         conv_args = self._conv_args(data)
         for conv, feat_layer in zip(self.graph_convs, self.feature_layers):
-            c = conv(x=x, **conv_args)
+            c, pos = conv(x=x, pos=data.pos, **conv_args)
             x = F.relu(feat_layer(c))
 
         #### multi-head decoder part####

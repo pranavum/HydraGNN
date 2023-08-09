@@ -104,7 +104,7 @@ class DIMEStack(Base):
             act=SiLU(),
         )
         return Sequential(
-            "x, rbf, sbf, i, j, idx_kj, idx_ji",
+            "x, pos, rbf, sbf, i, j, idx_kj, idx_ji",
             [
                 (lin, "x -> x"),
                 (emb, "x, rbf, i, j -> x1"),

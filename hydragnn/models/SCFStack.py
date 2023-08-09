@@ -13,6 +13,7 @@ from typing import Optional
 
 import torch
 from torch.nn import Identity, Linear, Sequential
+from torch_geometric.nn import Sequential as PyGSeq
 from torch_geometric.nn.models.schnet import (
     CFConv,
     GaussianSmearing,
@@ -60,12 +61,19 @@ class SCFStack(Base):
             Linear(self.num_filters, self.num_filters),
         )
 
-        return CFConv(
+        interaction = CFConv(
             in_channels=input_dim,
             out_channels=output_dim,
             nn=mlp,
             num_filters=self.num_filters,
             cutoff=self.radius,
+        )
+
+        return Sequential(
+            "x, pos",
+            [
+                (interaction, "x -> x"),
+            ],
         )
 
     def _conv_args(self, data):

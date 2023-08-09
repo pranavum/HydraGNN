@@ -12,7 +12,7 @@
 import torch
 import torch.nn.functional as F
 from torch.nn import ModuleList
-from torch_geometric.nn import CGConv, BatchNorm, global_mean_pool
+from torch_geometric.nn import CGConv, BatchNorm, global_mean_pool, Sequential
 from .Base import Base
 
 
@@ -40,12 +40,18 @@ class CGCNNStack(Base):
         )
 
     def get_conv(self, input_dim, _):
-        return CGConv(
+        cgcnn = CGConv(
             channels=input_dim,
             dim=self.edge_dim,
             aggr="add",
             batch_norm=False,
             bias=True,
+        )
+        return Sequential(
+            "x, pos",
+            [
+                (cgcnn, "x -> x"),
+            ],
         )
 
     def _init_node_conv(self):

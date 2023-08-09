@@ -78,6 +78,10 @@ def update_config(config, train_loader, val_loader, test_loader):
         config["NeuralNetwork"]["Architecture"]
     )
 
+    config["NeuralNetwork"]["Architecture"] = update_config_equivariance(
+        config["NeuralNetwork"]["Architecture"]
+    )
+
     if "freeze_conv_layers" not in config["NeuralNetwork"]["Architecture"]:
         config["NeuralNetwork"]["Architecture"]["freeze_conv_layers"] = False
     if "initial_bias" not in config["NeuralNetwork"]["Architecture"]:
@@ -91,6 +95,15 @@ def update_config(config, train_loader, val_loader, test_loader):
 
     if "SyncBatchNorm" not in config["NeuralNetwork"]["Architecture"]:
         config["NeuralNetwork"]["Architecture"]["SyncBatchNorm"] = False
+    return config
+
+
+def update_config_equivariance(config):
+    equivariant_models = ["SchNet", "EGNN", "DimeNet"]
+    if "equivariance" in config and config["equivariance"]:
+        assert (
+            config["model_type"] in equivariant_models
+        ), "E(3) equivariance can only be ensured for EGNN, SchNet, and DimeNet."
     return config
 
 
