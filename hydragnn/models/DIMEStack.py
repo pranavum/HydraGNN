@@ -110,6 +110,7 @@ class DIMEStack(Base):
                 (emb, "x, rbf, i, j -> x1"),
                 (inter, "x1, rbf, sbf, idx_kj, idx_ji -> x2"),
                 (dec, "x2, rbf, i -> c"),
+                (lambda x, pos: [x, pos], "c, pos -> c, pos"),
             ],
         )
 

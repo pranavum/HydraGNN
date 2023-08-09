@@ -43,6 +43,7 @@ class EGCLStack(Base):
             "x, pos, edge_index, edge_attr",
             [
                 (egcl, "x, pos, edge_index, edge_attr -> x"),
+                (lambda x, pos: [x, pos], "x, pos -> x, pos"),
             ],
         )
 

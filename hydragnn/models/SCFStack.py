@@ -69,14 +69,14 @@ class SCFStack(Base):
             cutoff=self.radius,
         )
 
-        input_args = "x, pos, edge_index"
-        if self.use_edge_attr:
-            input_args += ", edge_attr"
+        input_args = "x, pos, edge_index, edge_weight, edge_attr"
+        conv_args = "x, edge_index, edge_weight, edge_attr"
 
-        return Sequential(
-            base_args,
+        return PyGSeq(
+            input_args,
             [
-                (interaction, base_args + " -> x"),
+                (interaction, conv_args + " -> x"),
+                (lambda x, pos: [x, pos], "x, pos -> x, pos"),
             ],
         )
 
