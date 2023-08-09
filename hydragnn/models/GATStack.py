@@ -98,10 +98,15 @@ class GATStack(Base):
             add_self_loops=True,
             concat=concat,
         )
+
+        input_args = "x, pos, edge_index"
+        if self.use_edge_attr:
+            input_args += ", edge_attr"
+
         return Sequential(
-            "x, pos",
+            base_args,
             [
-                (gat, "x -> x"),
+                (gat, base_args + " -> x"),
             ],
         )
 

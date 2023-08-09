@@ -38,6 +38,7 @@ class EGCLStack(Base):
             hidden_channels=self.hidden_dim,
             edge_attr_dim=self.edge_dim,
         )
+
         return Sequential(
             "x, pos, edge_index, edge_attr",
             [

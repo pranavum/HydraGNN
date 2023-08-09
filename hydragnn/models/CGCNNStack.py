@@ -47,10 +47,15 @@ class CGCNNStack(Base):
             batch_norm=False,
             bias=True,
         )
+
+        input_args = "x, pos, edge_index"
+        if self.use_edge_attr:
+            input_args += ", edge_attr"
+
         return Sequential(
-            "x, pos",
+            base_args,
             [
-                (cgcnn, "x -> x"),
+                (cgcnn, base_args + " -> x"),
             ],
         )
 

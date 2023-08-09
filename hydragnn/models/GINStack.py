@@ -32,10 +32,15 @@ class GINStack(Base):
             eps=100.0,
             train_eps=True,
         )
+
+        input_args = "x, pos, edge_index"
+        if self.use_edge_attr:
+            input_args += ", edge_attr"
+
         return Sequential(
-            "x, pos",
+            base_args,
             [
-                (gin, "x -> x"),
+                (gin, base_args + " -> x"),
             ],
         )
 

@@ -35,10 +35,15 @@ class MFCStack(Base):
             out_channels=output_dim,
             max_degree=self.max_degree,
         )
+
+        input_args = "x, pos, edge_index"
+        if self.use_edge_attr:
+            input_args += ", edge_attr"
+
         return Sequential(
-            "x, pos",
+            base_args,
             [
-                (mfc, "x -> x"),
+                (mfc, base_args + " -> x"),
             ],
         )
 

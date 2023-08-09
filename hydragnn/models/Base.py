@@ -110,7 +110,10 @@ class Base(Module):
 
     def _conv_args(self, data):
         conv_args = {"edge_index": data.edge_index}
-        if (data.edge_attr is not None) and (self.use_edge_attr):
+        if self.use_edge_attr:
+            assert (
+                data.edge_attr is not None
+            ), "Data must have edge attributes if use_edge_attributes is set."
             conv_args.update({"edge_attr": data.edge_attr})
         return conv_args
 

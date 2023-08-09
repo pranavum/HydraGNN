@@ -27,10 +27,15 @@ class SAGEStack(Base):
             in_channels=input_dim,
             out_channels=output_dim,
         )
+
+        base_args = "x, pos, edge_index"
+        if self.use_edge_attr:
+            base_args += ", edge_attr"
+
         return Sequential(
-            "x, pos",
+            base_args,
             [
-                (sage, "x -> x"),
+                (interaction, base_args + " -> x"),
             ],
         )
 

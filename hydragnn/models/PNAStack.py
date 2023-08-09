@@ -49,10 +49,15 @@ class PNAStack(Base):
             post_layers=1,
             divide_input=False,
         )
+
+        input_args = "x, pos, edge_index"
+        if self.use_edge_attr:
+            input_args += ", edge_attr"
+
         return Sequential(
-            "x, pos",
+            base_args,
             [
-                (cgcnn, "x -> x"),
+                (pna, base_args + " -> x"),
             ],
         )
 
