@@ -99,11 +99,11 @@ def update_config(config, train_loader, val_loader, test_loader):
 
 
 def update_config_equivariance(config):
-    equivariant_models = ["EGNN"]
+    equivariant_models = ["EGNN", "SchNet"]
     if "equivariance" in config and config["equivariance"]:
         assert (
             config["model_type"] in equivariant_models
-        ), "E(3) equivariance can only be ensured for EGNN, SchNet, and DimeNet."
+        ), "E(3) equivariance can only be ensured for EGNN and SchNet."
     elif "equivariance" not in config:
         config["equivariance"] = False
     return config

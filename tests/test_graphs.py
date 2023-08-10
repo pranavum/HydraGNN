@@ -190,7 +190,7 @@ def pytest_train_model_lengths(model_type, overwrite_data=False):
 
 
 # Test across equivariant models
-@pytest.mark.parametrize("model_type", ["EGNN"])
+@pytest.mark.parametrize("model_type", ["EGNN","SchNet"])
 def pytest_train_equivariant_model(model_type, overwrite_data=False):
     unittest_train_model(model_type, "ci_equivariant.json", False, overwrite_data)
 
