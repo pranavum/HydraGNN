@@ -78,7 +78,7 @@ class SCFStack(Base):
         )
 
         conv_args = "x, edge_index, edge_weight, edge_attr, pos"
-        if (self.use_edge_attr) and not self.equivariance:
+        if (self.use_edge_attr):
             input_args = "x, pos, edge_index, edge_weight, edge_attr"
             return PyGSeq(
                 input_args,
@@ -112,7 +112,9 @@ class SCFStack(Base):
 
 
     def _conv_args(self, data):
-        if (self.use_edge_attr) and (not self.equivariance):
+        if (self.use_edge_attr) and (self.equivariance):
+            raise Exception("For SchNet if using edge attributes, then E(3)-equivariance cannot be ensured. Please disable equivariance or edge attributes.")
+        elif (self.use_edge_attr):
             edge_index = data.edge_index
             edge_weight = data.edge_attr.norm(dim=-1)
 
@@ -121,12 +123,10 @@ class SCFStack(Base):
                 "edge_weight": edge_weight,
                 "edge_attr": self.distance_expansion(edge_weight),
             }
-        elif self.equivariance:
+        else:
             conv_args = {
                 "batch": data.batch,
             }
-        else:
-            raise Exception("Cannot do both use_edge_attr and ensure E(3)-equivariance")
 
 
         return conv_args
@@ -172,7 +172,7 @@ class CFConv(MessagePassing):
             trans, min=-100, max=100
         )  # This is never activated but just in case it case it explosed it may save the train
         agg = unsorted_segment_mean(trans, row, num_segments=coord.size(0))
-        coord += agg 
+        coord = coord + agg 
         return coord
 
     def reset_parameters(self):

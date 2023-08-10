@@ -206,7 +206,7 @@ class E_GCL(nn.Module):
             trans, min=-100, max=100
         )  # This is never activated but just in case it case it explosed it may save the train
         agg = unsorted_segment_mean(trans, row, num_segments=coord.size(0))
-        coord += agg * self.coords_weight
+        coord = coord + agg * self.coords_weight
         return coord
 
     def coord2radial(self, edge_index, coord):
