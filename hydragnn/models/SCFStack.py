@@ -51,6 +51,7 @@ class SCFStack(Base):
         self.distance_expansion = GaussianSmearing(0.0, self.radius, self.num_gaussians)
         self.interaction_graph = RadiusInteractionGraph(self.radius, self.max_neighbours)
 
+        # comment on why equiv avoids last layer
         last_layer = 1==self.num_conv_layers
         self.graph_convs.append(self.get_conv(self.input_dim, self.hidden_dim, last_layer))
         self.feature_layers.append(Identity())
