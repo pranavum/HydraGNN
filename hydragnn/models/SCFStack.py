@@ -57,7 +57,6 @@ class SCFStack(Base):
         for i in range(self.num_conv_layers - 1):
             last_layer = i==self.num_conv_layers-2
             conv = self.get_conv(self.hidden_dim, self.hidden_dim, last_layer)
-            print(last_layer, self.equivariance)
             self.graph_convs.append(conv)
             self.feature_layers.append(Identity())
 
