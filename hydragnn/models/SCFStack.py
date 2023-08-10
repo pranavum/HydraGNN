@@ -10,6 +10,7 @@
 ##############################################################################
 
 from typing import Optional
+from math import pi as PI
 
 import torch
 from torch.nn import Identity, Linear, Sequential
@@ -47,14 +48,17 @@ class SCFStack(Base):
         pass
 
     def _init_conv(self):
-        self.graph_convs.append(self.get_conv(self.input_dim, self.hidden_dim))
+        last_layer = 1==self.num_conv_layers
+        self.graph_convs.append(self.get_conv(self.input_dim, self.hidden_dim, last_layer))
         self.feature_layers.append(Identity())
-        for _ in range(self.num_conv_layers - 1):
-            conv = self.get_conv(self.hidden_dim, self.hidden_dim)
+        for i in range(self.num_conv_layers - 1):
+            last_layer = i==self.num_conv_layers-2
+            conv = self.get_conv(self.hidden_dim, self.hidden_dim, last_layer)
+            print(last_layer, self.equivariance)
             self.graph_convs.append(conv)
             self.feature_layers.append(Identity())
 
-    def get_conv(self, input_dim, output_dim):
+    def get_conv(self, input_dim, output_dim, last_layer):
         mlp = Sequential(
             Linear(self.num_gaussians, self.num_filters),
             ShiftedSoftplus(),

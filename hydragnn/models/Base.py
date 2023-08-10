@@ -253,7 +253,7 @@ class Base(Module):
         ### encoder part ####
         conv_args = self._conv_args(data)
         for conv, feat_layer in zip(self.graph_convs, self.feature_layers):
-            c, pos = conv(x=x, pos=data.pos, **conv_args)
+            c, pos = conv(x=x, pos=pos, **conv_args)
             x = F.relu(feat_layer(c))
 
         #### multi-head decoder part####
