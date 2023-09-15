@@ -93,15 +93,16 @@ class SimplePickleDataset(AbstractBaseDataset):
         self.subset = subset
 
     def update_data_object(self, data_object):
-        if self.var_config is not None:
-            update_predicted_values(
-                self.variables_type,
-                self.output_index,
-                self.graph_feature_dim,
-                self.node_feature_dim,
-                data_object,
-            )
-            update_atom_features(self.input_node_features, data_object)
+        if (not hasattr(data_object, 'updated_features')) or (not data_object.updated_features):
+            if self.var_config is not None:
+                update_predicted_values(
+                    self.variables_type,
+                    self.output_index,
+                    self.graph_feature_dim,
+                    self.node_feature_dim,
+                    data_object,
+                )
+                update_atom_features(self.input_node_features, data_object)
 
 
 class SimplePickleWriter:
