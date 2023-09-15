@@ -49,12 +49,30 @@ from hydragnn.utils.abstractrawdataset import AbstractBaseDataset
 # FIXME: this radis cutoff overwrites the radius cutoff currently written in the JSON file
 create_graph_fromXYZ = RadiusGraph(r=5.0) # radius cutoff in angstrom
 compute_edge_lengths = Distance(norm=False, cat=True)
+spherical_coordinates = Spherical(cat=False)
 
 
 class LJDataset(AbstractBaseDataset):
     """LJDataset dataset class"""
 
-    def __init__(self, dirpath, config, dist=False, sampling=None):
+    def __init__(self, dirpath, dist=False, sampling=None):
+        super().__init__()
+
+        self.dist = dist
+        self.world_size = 1
+        self.rank = 1
+        if self.dist:
+            assert torch.distributed.is_initialized()
+            self.world_size = torch.distributed.get_world_size()
+            self.rank = torch.distributed.get_rank()
+
+        dirfiles = sorted(os.listdir(dirpath))
+
+        rx = list(nsplit((dirfiles), self.world_size))[self.rank]
+
+        for file in rx:
+            filepath = os.path.join(dirpath, file)
+            self.dataset.append(self.transform_input_to_data_object_base(filepath))
 
 
     def transform_input_to_data_object_base(self, filepath):
@@ -91,12 +109,18 @@ class LJDataset(AbstractBaseDataset):
         file.close()
 
         data = Data(pos=torch_data[:, [1, 2, 3]].to(torch.float32), x=torch_data[:, [0, 4, 5, 6, 7]].to(torch.float32), y=torch.tensor(energy).unsqueeze(0).to(torch.float32), supercell_size=torch_supercell.to(torch.float32))
-        data = Spherical(data)
-
-        massi = 0
+        data = create_graph_fromXYZ(data)
+        data = compute_edge_lengths(data)
+        data.edge_attr = data.edge_attr.to(torch.float32)
+        data = spherical_coordinates(data)
 
         return data
 
+    def len(self):
+        return len(self.dataset)
+
+    def get(self, idx):
+        return self.dataset[idx]
 
 
 if __name__ == "__main__":
@@ -185,7 +209,6 @@ if __name__ == "__main__":
         ## local data
         total = LJDataset(
             os.path.join(datadir),
-            config,
             dist=True,
         )
         ## This is a local split
