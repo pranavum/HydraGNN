@@ -32,7 +32,8 @@ def update_config(config, train_loader, val_loader, test_loader):
         graph_size_variable = bool(int(graph_size_variable))
 
     if "Dataset" in config:
-        check_output_dim_consistent(train_loader.dataset[0], config)
+        if (not hasattr(train_loader.dataset[0], 'updated_features')) or (not train_loader.dataset[0].updated_features):
+            check_output_dim_consistent(train_loader.dataset[0], config)
 
     config["NeuralNetwork"] = update_config_NN_outputs(
         config["NeuralNetwork"], train_loader.dataset[0], graph_size_variable

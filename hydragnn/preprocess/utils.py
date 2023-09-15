@@ -275,6 +275,7 @@ def update_predicted_values(
             raise ValueError("Unknown output type", type[item])
         output_feature.append(feat_)
         data.y_loc[0, item + 1] = data.y_loc[0, item] + feat_.shape[0] * feat_.shape[1]
+        data.updated_features = True
     data.y = torch.cat(output_feature, 0)
 
 
