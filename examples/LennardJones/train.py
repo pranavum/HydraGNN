@@ -52,7 +52,7 @@ def info(*args, logtype="info", sep=" "):
 # FIXME: this radis cutoff overwrites the radius cutoff currently written in the JSON file
 create_graph_fromXYZ = RadiusGraph(r=5.0)  # radius cutoff in angstrom
 compute_edge_lengths = Distance(norm=False, cat=True)
-spherical_coordinates = Spherical(cat=False)
+spherical_coordinates = Spherical(norm=False, cat=False)
 
 
 class LJDataset(AbstractBaseDataset):
