@@ -17,13 +17,18 @@ import hydragnn
 from hydragnn.utils.print_utils import iterate_tqdm, log
 from hydragnn.utils.time_utils import Timer
 
-from hydragnn.utils.distributed import get_device
 from hydragnn.preprocess.load_data import split_dataset
+from hydragnn.utils.abstractrawdataset import AbstractBaseDataset
 from hydragnn.utils.distdataset import DistDataset
 from hydragnn.utils.pickledataset import SimplePickleWriter, SimplePickleDataset
 from hydragnn.preprocess.utils import gather_deg
 
 import numpy as np
+
+try:
+    from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
+except ImportError:
+    pass
 
 from torch_geometric.data import Data
 from torch_geometric.transforms import RadiusGraph, Distance, Spherical
@@ -33,8 +38,9 @@ import torch.distributed as dist
 from hydragnn.utils import nsplit
 import hydragnn.utils.tracer as tr
 
-# FIXME: this works fine for now because we train on QM7-X molecules
-# for larger chemical spaces, the following atom representation has to be properly expanded
+
+# FIXME: this works fine for now because we train on disordered atomic structures with potentials and forces computed with Lennard-Jones
+
 
 torch.set_default_dtype(torch.float32)
 
@@ -43,11 +49,8 @@ def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
 
 
-from hydragnn.utils.abstractrawdataset import AbstractBaseDataset
-
-
 # FIXME: this radis cutoff overwrites the radius cutoff currently written in the JSON file
-create_graph_fromXYZ = RadiusGraph(r=5.0) # radius cutoff in angstrom
+create_graph_fromXYZ = RadiusGraph(r=5.0)  # radius cutoff in angstrom
 compute_edge_lengths = Distance(norm=False, cat=True)
 spherical_coordinates = Spherical(cat=False)
 
@@ -74,11 +77,10 @@ class LJDataset(AbstractBaseDataset):
             filepath = os.path.join(dirpath, file)
             self.dataset.append(self.transform_input_to_data_object_base(filepath))
 
-
     def transform_input_to_data_object_base(self, filepath):
 
         # Using readline()
-        file = open(filepath, 'r')
+        file = open(filepath, "r")
 
         torch_data = torch.empty((0, 8), dtype=torch.float32)
         torch_supercell = torch.zeros((0, 3), dtype=torch.float32)
@@ -99,16 +101,25 @@ class LJDataset(AbstractBaseDataset):
             if count == 1:
                 energy = float(line)
             elif 1 < count < 5:
-                array_line = np.fromstring(line, dtype=float, sep='\t')
-                torch_supercell = torch.cat([torch_supercell, torch.from_numpy(array_line).unsqueeze(0)], axis=0)
+                array_line = np.fromstring(line, dtype=float, sep="\t")
+                torch_supercell = torch.cat(
+                    [torch_supercell, torch.from_numpy(array_line).unsqueeze(0)], axis=0
+                )
             elif count > 4:
-                array_line = np.fromstring(line, dtype=float, sep='\t')
-                torch_data = torch.cat([torch_data, torch.from_numpy(array_line).unsqueeze(0)], axis=0)
-            #print("Line{}: {}".format(count, line.strip()))
+                array_line = np.fromstring(line, dtype=float, sep="\t")
+                torch_data = torch.cat(
+                    [torch_data, torch.from_numpy(array_line).unsqueeze(0)], axis=0
+                )
+            # print("Line{}: {}".format(count, line.strip()))
 
         file.close()
 
-        data = Data(pos=torch_data[:, [1, 2, 3]].to(torch.float32), x=torch_data[:, [0, 4, 5, 6, 7]].to(torch.float32), y=torch.tensor(energy).unsqueeze(0).to(torch.float32), supercell_size=torch_supercell.to(torch.float32))
+        data = Data(
+            pos=torch_data[:, [1, 2, 3]].to(torch.float32),
+            x=torch_data[:, [0, 4, 5, 6, 7]].to(torch.float32),
+            y=torch.tensor(energy).unsqueeze(0).to(torch.float32),
+            supercell_size=torch_supercell.to(torch.float32),
+        )
         data = create_graph_fromXYZ(data)
         data = compute_edge_lengths(data)
         data.edge_attr = data.edge_attr.to(torch.float32)
@@ -133,9 +144,7 @@ if __name__ == "__main__":
         action="store_true",
         help="preprocess only (no training)",
     )
-    parser.add_argument(
-        "--inputfile", help="input file", type=str, default="LJ.json"
-    )
+    parser.add_argument("--inputfile", help="input file", type=str, default="LJ.json")
     parser.add_argument("--mae", action="store_true", help="do mae calculation")
     parser.add_argument("--ddstore", action="store_true", help="ddstore dataset")
     parser.add_argument("--ddstore_width", type=int, help="ddstore width", default=None)
@@ -175,10 +184,18 @@ if __name__ == "__main__":
     with open(input_filename, "r") as f:
         config = json.load(f)
     verbosity = config["Verbosity"]["level"]
-    config["NeuralNetwork"]["Variables_of_interest"]["graph_feature_names"] = graph_feature_names
-    config["NeuralNetwork"]["Variables_of_interest"]["graph_feature_dims"] = graph_feature_dims
-    config["NeuralNetwork"]["Variables_of_interest"]["node_feature_names"] = node_feature_names
-    config["NeuralNetwork"]["Variables_of_interest"]["node_feature_dims"] = node_feature_dims
+    config["NeuralNetwork"]["Variables_of_interest"][
+        "graph_feature_names"
+    ] = graph_feature_names
+    config["NeuralNetwork"]["Variables_of_interest"][
+        "graph_feature_dims"
+    ] = graph_feature_dims
+    config["NeuralNetwork"]["Variables_of_interest"][
+        "node_feature_names"
+    ] = node_feature_names
+    config["NeuralNetwork"]["Variables_of_interest"][
+        "node_feature_dims"
+    ] = node_feature_dims
 
     if args.batch_size is not None:
         config["NeuralNetwork"]["Training"]["batch_size"] = args.batch_size
@@ -224,53 +241,88 @@ if __name__ == "__main__":
 
         setnames = ["trainset", "valset", "testset"]
 
-        ## pickle
-        basedir = os.path.join(
-            os.path.dirname(__file__), "dataset", "%s.pickle" % modelname
-        )
-        attrs = dict()
-        attrs["pna_deg"] = deg
-        SimplePickleWriter(
-            trainset,
-            basedir,
-            "trainset",
-            # minmax_node_feature=total.minmax_node_feature,
-            # minmax_graph_feature=total.minmax_graph_feature,
-            use_subdir=True,
-            attrs=attrs,
-        )
-        SimplePickleWriter(
-            valset,
-            basedir,
-            "valset",
-            # minmax_node_feature=total.minmax_node_feature,
-            # minmax_graph_feature=total.minmax_graph_feature,
-            use_subdir=True,
-        )
-        SimplePickleWriter(
-            testset,
-            basedir,
-            "testset",
-            # minmax_node_feature=total.minmax_node_feature,
-            # minmax_graph_feature=total.minmax_graph_feature,
-            use_subdir=True,
-        )
+        if args.format == "pickle":
+
+            ## pickle
+            basedir = os.path.join(
+                os.path.dirname(__file__), "dataset", "%s.pickle" % modelname
+            )
+            attrs = dict()
+            attrs["pna_deg"] = deg
+            SimplePickleWriter(
+                trainset,
+                basedir,
+                "trainset",
+                # minmax_node_feature=total.minmax_node_feature,
+                # minmax_graph_feature=total.minmax_graph_feature,
+                use_subdir=True,
+                attrs=attrs,
+            )
+            SimplePickleWriter(
+                valset,
+                basedir,
+                "valset",
+                # minmax_node_feature=total.minmax_node_feature,
+                # minmax_graph_feature=total.minmax_graph_feature,
+                use_subdir=True,
+            )
+            SimplePickleWriter(
+                testset,
+                basedir,
+                "testset",
+                # minmax_node_feature=total.minmax_node_feature,
+                # minmax_graph_feature=total.minmax_graph_feature,
+                use_subdir=True,
+            )
+
+        if args.format == "adios":
+            ## adios
+            fname = os.path.join(
+                os.path.dirname(__file__), "./dataset/%s.bp" % modelname
+            )
+            adwriter = AdiosWriter(fname, comm)
+            adwriter.add("trainset", trainset)
+            adwriter.add("valset", valset)
+            adwriter.add("testset", testset)
+            # adwriter.add_global("minmax_node_feature", total.minmax_node_feature)
+            # adwriter.add_global("minmax_graph_feature", total.minmax_graph_feature)
+            adwriter.add_global("pna_deg", deg)
+            adwriter.save()
+
         sys.exit(0)
 
     tr.initialize()
     tr.disable()
     timer = Timer("load_data")
     timer.start()
-
-    if args.format == "pickle":
+    if args.format == "adios":
+        info("Adios load")
+        assert not (args.shmem and args.ddstore), "Cannot use both ddstore and shmem"
+        opt = {
+            "preload": False,
+            "shmem": args.shmem,
+            "ddstore": args.ddstore,
+            "ddstore_width": args.ddstore_width,
+        }
+        fname = os.path.join(os.path.dirname(__file__), "./dataset/%s.bp" % modelname)
+        trainset = AdiosDataset(fname, "trainset", comm, **opt)
+        valset = AdiosDataset(fname, "valset", comm, **opt)
+        testset = AdiosDataset(fname, "testset", comm, **opt)
+    elif args.format == "pickle":
         info("Pickle load")
         basedir = os.path.join(
             os.path.dirname(__file__), "dataset", "%s.pickle" % modelname
         )
         var_config = config["NeuralNetwork"]["Variables_of_interest"]
-        trainset = SimplePickleDataset(basedir=basedir, label="trainset", preload=True, var_config=var_config)
-        valset = SimplePickleDataset(basedir=basedir, label="valset", var_config=var_config)
-        testset = SimplePickleDataset(basedir=basedir, label="testset", var_config=var_config)
+        trainset = SimplePickleDataset(
+            basedir=basedir, label="trainset", preload=True, var_config=var_config
+        )
+        valset = SimplePickleDataset(
+            basedir=basedir, label="valset", var_config=var_config
+        )
+        testset = SimplePickleDataset(
+            basedir=basedir, label="testset", var_config=var_config
+        )
         # minmax_node_feature = trainset.minmax_node_feature
         # minmax_graph_feature = trainset.minmax_graph_feature
         pna_deg = trainset.pna_deg
