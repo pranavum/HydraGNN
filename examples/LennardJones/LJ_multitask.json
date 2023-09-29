@@ -38,6 +38,15 @@
       "hidden_dim": 200,
       "num_conv_layers": 6,
       "output_heads": {
+        "graph": {
+          "num_sharedlayers": 2,
+          "dim_sharedlayers": 200,
+          "num_headlayers": 2,
+          "dim_headlayers": [
+            1000,
+            1000
+          ]
+        },
         "node": {
           "num_headlayers": 2,
           "dim_headlayers": [1000,1000],
@@ -45,19 +54,19 @@
         }
       },
       "task_weights": [
-        1
+        1, 1, 1
       ]
     },
     "Variables_of_interest": {
       "input_node_features": [0],
       "output_index": [
-        2
+        0, 1, 2
       ],
       "type": [
-        "node"
+        "graph", "node", "node"
       ],
-      "output_dim": [3],
-      "output_names": ["atomic_forces"]
+      "output_dim": [1, 1, 3],
+      "output_names": ["total_energy", "atomic_potential", "atomic_forces"]
     },
     "Training": {
       "num_epoch": 200,
