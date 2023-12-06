@@ -22,25 +22,15 @@
     "Architecture": {
       "periodic_boundary_conditions": true,
       "model_type": "PNA",
+      "equivariance": false,
       "edge_features": ["bond_length", "polar_angle", "azimutal_angle"],
       "max_neighbours": 20,
-      "num_gaussians": 50,
-      "num_filters": 50,
-      "envelope_exponent": 5,
-      "int_emb_size": 64,
-      "basis_emb_size": 8,
-      "out_emb_size": 128,
-      "num_after_skip": 2,
-      "num_before_skip": 1,
-      "num_radial": 6,
-      "num_spherical": 7,
-      "radius": 5,
       "hidden_dim": 200,
       "num_conv_layers": 6,
       "output_heads": {
         "node": {
           "num_headlayers": 2,
-          "dim_headlayers": [1000,1000],
+          "dim_headlayers": [100,100],
           "type": "mlp"
         }
       },
@@ -60,8 +50,8 @@
       "output_names": ["atomic_forces"]
     },
     "Training": {
-      "num_epoch": 200,
-      "batch_size": 32,
+      "num_epoch": 20,
+      "batch_size": 3,
       "continue": 0,
       "EarlyStopping": true,
       "patience": 100,
