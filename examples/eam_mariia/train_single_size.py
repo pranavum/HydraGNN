@@ -8,8 +8,10 @@ import hydragnn
 from hydragnn.utils.time_utils import Timer
 from hydragnn.utils.config_utils import get_log_name_config
 from hydragnn.utils.model import print_model
-from hydragnn.utils.serializeddataset import SerializedWriter, SerializedDataset
+from hydragnn.utils.serializeddataset import SerializedDataset
+from hydragnn.utils.pickledataset import SimplePickleWriter
 from hydragnn.preprocess.load_data import split_dataset
+from hydragnn.preprocess.utils import gather_deg
 
 from mariia_dataset import MariiaDataset
 
@@ -77,10 +79,13 @@ if __name__ == "__main__":
         datefmt="%H:%M:%S",
     )
 
+    modelname = "eam"
+
     os.environ["SERIALIZED_DATA_PATH"] = dirpwd + "/dataset"
     datasetname = config["Dataset"]["name"]
     fname_adios = dirpwd + "/dataset/%s.bp" % (datasetname)
     config["Dataset"]["name"] = "%s_%d" % (datasetname, rank)
+
     if not args.loadexistingsplit:
         total = MariiaDataset(config)
 
@@ -90,6 +95,8 @@ if __name__ == "__main__":
             stratify_splitting=config["Dataset"]["compositional_stratified_splitting"],
         )
         print(len(total), len(trainset), len(valset), len(testset))
+
+        deg = gather_deg(trainset)
 
         if args.format == "adios":
             fname = os.path.join(
@@ -104,28 +111,37 @@ if __name__ == "__main__":
             adwriter.save()
         elif args.format == "pickle":
             basedir = os.path.join(
-                os.path.dirname(__file__), "dataset", "serialized_dataset"
+                os.path.dirname(__file__), "dataset", "%s.pickle" % modelname
             )
-            SerializedWriter(
+            attrs = dict()
+            attrs["pna_deg"] = deg
+            SimplePickleWriter(
                 trainset,
                 basedir,
-                datasetname,
                 "trainset",
-                minmax_node_feature=total.minmax_node_feature,
-                minmax_graph_feature=total.minmax_graph_feature,
+                # minmax_node_feature=total.minmax_node_feature,
+                # minmax_graph_feature=total.minmax_graph_feature,
+                use_subdir=True,
+                attrs=attrs,
             )
-            SerializedWriter(
+            SimplePickleWriter(
                 valset,
                 basedir,
-                datasetname,
                 "valset",
+                # minmax_node_feature=total.minmax_node_feature,
+                # minmax_graph_feature=total.minmax_graph_feature,
+                use_subdir=True,
             )
-            SerializedWriter(
+            SimplePickleWriter(
                 testset,
                 basedir,
-                datasetname,
                 "testset",
+                # minmax_node_feature=total.minmax_node_feature,
+                # minmax_graph_feature=total.minmax_graph_feature,
+                use_subdir=True,
             )
+            sys.exit(0)
+
     comm.Barrier()
     if args.preonly:
         sys.exit(0)
