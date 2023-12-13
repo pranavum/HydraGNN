@@ -62,11 +62,28 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    graph_feature_names = ["formation_energy"]
+    graph_feature_dims = [1]
+    node_feature_names = ["num_of_protons","c_peratom", "masses", "forces"]
+    node_feature_dims = [1, 1, 1, 3]
     dirpwd = os.path.dirname(os.path.abspath(__file__))
+    ##################################################################################################################
     input_filename = os.path.join(dirpwd, args.inputfile)
+    ##################################################################################################################
+    # Configurable run choices (JSON file that accompanies this example script).
     with open(input_filename, "r") as f:
         config = json.load(f)
-    hydragnn.utils.setup_log(get_log_name_config(config))
+    verbosity = config["Verbosity"]["level"]
+    var_config = config["NeuralNetwork"]["Variables_of_interest"]
+    var_config["graph_feature_names"] = graph_feature_names
+    var_config["graph_feature_dims"] = graph_feature_dims
+    var_config["node_feature_names"] = node_feature_names
+    var_config["node_feature_dims"] = node_feature_dims
+    datadir = os.path.join(dirpwd, config["Dataset"]["path"]["total"])
+
+    if args.batch_size is not None:
+        config["NeuralNetwork"]["Training"]["batch_size"] = args.batch_size
+
     ##################################################################################################################
     # Always initialize for multi-rank training.
     comm_size, rank = hydragnn.utils.setup_ddp()
