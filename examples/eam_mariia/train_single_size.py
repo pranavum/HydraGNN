@@ -30,15 +30,24 @@ def info(*args, logtype="info", sep=" "):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--sampling", type=float, help="sampling ratio", default=None)
+    parser.add_argument(
+        "--preonly",
+        action="store_true",
+        help="preprocess only (no training)",
+    )
+    parser.add_argument("--mae", action="store_true", help="do mae calculation")
+    parser.add_argument("--ddstore", action="store_true", help="ddstore dataset")
+    parser.add_argument("--ddstore_width", type=int, help="ddstore width", default=None)
+    parser.add_argument("--shmem", action="store_true", help="shmem")
+    parser.add_argument("--log", help="log name")
+    parser.add_argument("--batch_size", type=int, help="batch_size", default=None)
+    parser.add_argument("--everyone", action="store_true", help="gptimer")
+
     parser.add_argument(
         "--loadexistingsplit",
         action="store_true",
         help="loading from existing pickle/adios files with train/test/validate splits",
-    )
-    parser.add_argument(
-        "--preonly",
-        action="store_true",
-        help="preprocess only. Adios or pickle saving and no train",
     )
     parser.add_argument(
         "--inputfile", help="input file", type=str, default="eam.json"
