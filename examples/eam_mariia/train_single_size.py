@@ -8,8 +8,8 @@ import hydragnn
 from hydragnn.utils.time_utils import Timer
 from hydragnn.utils.config_utils import get_log_name_config
 from hydragnn.utils.model import print_model
-from hydragnn.utils.serializeddataset import SerializedDataset
-from hydragnn.utils.pickledataset import SimplePickleWriter
+from hydragnn.utils.distdataset import DistDataset
+from hydragnn.utils.pickledataset import SimplePickleWriter, SimplePickleDataset
 from hydragnn.preprocess.load_data import split_dataset
 from hydragnn.preprocess.utils import gather_deg
 
@@ -161,13 +161,25 @@ if __name__ == "__main__":
     elif args.format == "pickle":
         info("Pickle load")
         basedir = os.path.join(
-            os.path.dirname(__file__), "dataset", "serialized_dataset"
+            os.path.dirname(__file__), "dataset", "%s.pickle" % modelname
         )
-        trainset = SerializedDataset(basedir, datasetname, "trainset")
-        valset = SerializedDataset(basedir, datasetname, "valset")
-        testset = SerializedDataset(basedir, datasetname, "testset")
+        trainset = SimplePickleDataset(basedir=basedir, label="trainset", var_config=var_config)
+        valset = SimplePickleDataset(basedir=basedir, label="valset", var_config=var_config)
+        testset = SimplePickleDataset(basedir=basedir, label="testset", var_config=var_config)
+        # minmax_node_feature = trainset.minmax_node_feature
+        # minmax_graph_feature = trainset.minmax_graph_feature
+        pna_deg = trainset.pna_deg
+        if args.ddstore:
+            opt = {"ddstore_width": args.ddstore_width}
+            trainset = DistDataset(trainset, "trainset", comm, **opt)
+            valset = DistDataset(valset, "valset", comm, **opt)
+            testset = DistDataset(testset, "testset", comm, **opt)
+            # trainset.minmax_node_feature = minmax_node_feature
+            # trainset.minmax_graph_feature = minmax_graph_feature
+            trainset.pna_deg = pna_deg
     else:
-        raise ValueError("Unknown data format: %d" % args.format)
+        raise NotImplementedError("No supported format: %s" % (args.format))
+
     ## Set minmax
     config["NeuralNetwork"]["Variables_of_interest"][
         "minmax_node_feature"
