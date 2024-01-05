@@ -25,13 +25,17 @@
       "equivariance": false,
       "edge_features": ["bond_length", "polar_angle", "azimutal_angle"],
       "max_neighbours": 20,
-      "hidden_dim": 200,
+      "hidden_dim": 50,
       "num_conv_layers": 6,
       "output_heads": {
-        "node": {
+        "graph": {
+          "num_sharedlayers": 2,
+          "dim_sharedlayers": 50,
           "num_headlayers": 2,
-          "dim_headlayers": [100,100],
-          "type": "mlp"
+          "dim_headlayers": [
+            50,
+            50
+          ]
         }
       },
       "task_weights": [
@@ -41,13 +45,13 @@
     "Variables_of_interest": {
       "input_node_features": [0],
       "output_index": [
-        2
+        0
       ],
       "type": [
-        "node"
+        "graph"
       ],
-      "output_dim": [3],
-      "output_names": ["atomic_forces"]
+      "output_dim": [1],
+      "output_names": ["total_energy"]
     },
     "Training": {
       "num_epoch": 20,

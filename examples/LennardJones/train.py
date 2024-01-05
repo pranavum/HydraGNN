@@ -99,7 +99,7 @@ class LJDataset(AbstractBaseDataset):
                 break
 
             if count == 1:
-                energy = float(line)
+                total_energy = float(line)
             elif 1 < count < 5:
                 array_line = np.fromstring(line, dtype=float, sep="\t")
                 torch_supercell = torch.cat(
@@ -114,11 +114,23 @@ class LJDataset(AbstractBaseDataset):
 
         file.close()
 
+        num_nodes = torch_data.shape[0]
+
+        energy_pre_translation_factor = -5.6
+        energy_pre_scaling_factor = 10 / num_nodes
+        energy_per_atom_pretransformed = (total_energy - energy_pre_translation_factor) * energy_pre_scaling_factor
+        forces = torch_data[:, [5, 6, 7]]
+        forces_pre_scaling_factor = 10
+        forces_pre_scaled = forces * forces_pre_scaling_factor
+
         data = Data(
-            pos=torch_data[:, [1, 2, 3]].to(torch.float32),
-            x=torch_data[:, [0, 4, 5, 6, 7]].to(torch.float32),
-            y=torch.tensor(energy).unsqueeze(0).to(torch.float32),
             supercell_size=torch_supercell.to(torch.float32),
+            num_nodes=num_nodes,
+            forces_pre_scaling_factor=forces_pre_scaling_factor.to(torch.float32),
+            forces_pre_scaled=forces_pre_scaled,
+            pos=torch_data[:, [1, 2, 3]].to(torch.float32),
+            x=torch.cat([torch_data[:, [0, 4]], forces_pre_scaled], axis=1).to(torch.float32),
+            y=torch.tensor(energy_per_atom_pretransformed).unsqueeze(0).to(torch.float32),
         )
         data = create_graph_fromXYZ(data)
         data = compute_edge_lengths(data)

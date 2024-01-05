@@ -169,64 +169,63 @@ if __name__ == "__main__":
     model.eval()
 
     variable_index = 0
-    for output_name, output_type, output_dim in zip(config["NeuralNetwork"]["Variables_of_interest"]["output_names"], config["NeuralNetwork"]["Variables_of_interest"]["type"], config["NeuralNetwork"]["Variables_of_interest"]["output_dim"]):
+    #for output_name, output_type, output_dim in zip(config["NeuralNetwork"]["Variables_of_interest"]["output_names"], config["NeuralNetwork"]["Variables_of_interest"]["type"], config["NeuralNetwork"]["Variables_of_interest"]["output_dim"]):
 
-        test_MAE = 0.0
+    test_MAE = 0.0
 
-        num_samples = len(testset)
-        true_values = []
-        predicted_values = []
-        forces = []
-        deriv_energy = []
+    num_samples = len(testset)
+    true_values = []
+    predicted_values = []
+    forces = []
+    deriv_energy = []
 
-        for data_id, data in enumerate(tqdm(testset)):
-            data.pos.requires_grad = True
-            predicted = model(data.to(get_device()))
-            predicted = predicted[variable_index].flatten()
-            start = data.y_loc[0][variable_index].item()
-            end = data.y_loc[0][variable_index + 1].item()
-            true = data.y[start:end, 0]
-            test_MAE += torch.norm(predicted - true, p=1).item() / len(testset)
-            predicted.backward()
-            gradients = data.pos.grad
-            predicted_values.extend(predicted.tolist())
-            true_values.extend(true.tolist())
-            deriv_energy.extend(torch.sum(gradients, dim=0).flatten().tolist())
-            forces.extend(data.forces.flatten().tolist())
+    for data_id, data in enumerate(tqdm(testset)):
+        data.pos.requires_grad = True
+        predicted = model(data.to(get_device()))
+        predicted = predicted[variable_index].flatten()
+        start = data.y_loc[0][variable_index].item()
+        end = data.y_loc[0][variable_index + 1].item()
+        true = data.y[start:end, 0]
+        test_MAE += torch.norm(predicted - true, p=1).item() / len(testset)
+        #predicted.backward(retain_graph=True)
+        #gradients = data.pos.grad
+        grads_energy = torch.autograd.grad(outputs=predicted, inputs=data.pos,
+                                           grad_outputs=data.num_nodes * torch.ones_like(predicted),
+                                           retain_graph=False)[0]
+        predicted_values.extend(predicted.tolist())
+        true_values.extend(true.tolist())
+        deriv_energy.extend(grads_energy.flatten().tolist())
+        forces.extend(data.forces.flatten().tolist())
 
-        hist2d_norm = getcolordensity(true_values, predicted_values)
+    hist2d_norm = getcolordensity(true_values, predicted_values)
 
-        fig, ax = plt.subplots()
-        plt.scatter(
-            true_values, predicted_values, s=8, c=hist2d_norm, vmin=0, vmax=1
-        )
-        plt.clim(0, 1)
-        ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", color="red")
-        plt.colorbar()
-        plt.xlabel("True values")
-        plt.ylabel("Predicted values")
-        plt.title(f"{output_name}")
-        plt.draw()
-        plt.tight_layout()
-        plt.savefig(f"./{output_name}_Scatterplot" + ".png", dpi=400)
+    fig, ax = plt.subplots()
+    plt.scatter(
+        true_values, predicted_values, s=8, c=hist2d_norm, vmin=0, vmax=1
+    )
+    plt.clim(0, 1)
+    ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", color="red")
+    plt.colorbar()
+    plt.xlabel("True values")
+    plt.ylabel("Predicted values")
+    plt.title(f"energy")
+    plt.draw()
+    plt.tight_layout()
+    plt.savefig(f"./energy_Scatterplot" + ".png", dpi=400)
 
-        print(f"Test MAE {output_name}: ", test_MAE)
+    print(f"Test MAE energy: ", test_MAE)
 
-        hist2d_norm = getcolordensity(deriv_energy, forces)
-        fig, ax = plt.subplots()
-        plt.scatter(
-            deriv_energy, forces, s=8, c=hist2d_norm, vmin=0, vmax=1
-        )
-        plt.clim(0, 1)
-        ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", color="red")
-        plt.colorbar()
-        plt.xlabel("Derivatives of energy")
-        plt.ylabel("Forces")
-        plt.title(f"{output_name}")
-        plt.draw()
-        plt.tight_layout()
-        plt.savefig(f"./Forces_Scatterplot" + ".png", dpi=400)
-
-        print(f"Test MAE {output_name}: ", test_MAE)
-
-        variable_index += 1
+    hist2d_norm = getcolordensity(deriv_energy, forces)
+    fig, ax = plt.subplots()
+    plt.scatter(
+        deriv_energy, forces, s=8, c=hist2d_norm, vmin=0, vmax=1
+    )
+    plt.clim(0, 1)
+    ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", color="red")
+    plt.colorbar()
+    plt.xlabel("Derivatives of energy")
+    plt.ylabel("Forces")
+    plt.title(f"derivative_energy")
+    plt.draw()
+    plt.tight_layout()
+    plt.savefig(f"./Forces_Scatterplot" + ".png", dpi=400)
