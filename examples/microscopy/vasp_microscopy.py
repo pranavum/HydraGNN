@@ -220,9 +220,11 @@ class VASPDataset(AbstractBaseDataset):
             self.rank = torch.distributed.get_rank()
 
         global_files_list = os.listdir(dirpath)
-        local_files_list = list(nsplit(global_files_list, self.world_size))[self.rank]
+        #local_files_list = list(nsplit(global_files_list, self.world_size))[self.rank]
+        local_dir_list = list(nsplit(global_files_list, self.world_size))[self.rank]
 
         # Iterate over the files
+        """
         for file_name in local_files_list:
             # If you want to work with the full path, you can join the directory path and file name
             file_path = os.path.join(dirpath, file_name)
@@ -234,6 +236,23 @@ class VASPDataset(AbstractBaseDataset):
                     data_object = self.radius_graph(data_object)
                     data_object = transform_coordinates(data_object)
                     self.dataset.append(data_object)
+        """
+        for dir_name in local_dir_list:
+            if os.path.isdir(os.path.join(dirpath, dir_name)):
+                files = os.listdir(os.path.join(dirpath, dir_name))
+                outcar_files = [file for file in files if file.startswith("OUTCAR")]
+                for file_name in outcar_files:
+                    # If you want to work with the full path, you can join the directory path and file name
+                    file_path = os.path.join(dirpath, dir_name, file_name)
+
+                    temp_dataset, _ = read_outcar(file_path)
+
+                    for data_object in temp_dataset:
+                        if data_object is not None:
+                            data_object = self.radius_graph(data_object)
+                            data_object = transform_coordinates(data_object)
+                            self.dataset.append(data_object)
+
 
         random.shuffle(self.dataset)
 
@@ -288,7 +307,7 @@ if __name__ == "__main__":
     node_feature_names = ["atomic_number", "cartesian_coordinates", "forces"]
     node_feature_dims = [1, 3, 3]
     dirpwd = os.path.dirname(os.path.abspath(__file__))
-    datadir = os.path.join(dirpwd, "dataset/undoped_MOS2_structures")
+    datadir = os.path.join(dirpwd, "dataset/aimd_baseline")
     ##################################################################################################################
     input_filename = os.path.join(dirpwd, args.inputfile)
     ##################################################################################################################
