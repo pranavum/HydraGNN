@@ -162,7 +162,8 @@ def read_outcar(file_path):
     supercell_start_marker = 'VOLUME and BASIS-vectors are now :'
     supercell_end_marker = 'FORCES acting on ions'
     atomic_structure_start_marker = 'POSITION                                       TOTAL-FORCE (eV/Angst)'
-    atomic_structure_end_marker = 'stress matrix after NEB project (eV)'
+    #atomic_structure_end_marker = 'stress matrix after NEB project (eV)'
+    atomic_structure_end_marker = 'ENERGY OF THE ELECTRON-ION-THERMOSTAT SYSTEM (eV)'
 
     dataset = []
 
@@ -195,6 +196,8 @@ def read_outcar(file_path):
         data_object.x = torch.cat((atom_numbers, positions, forces), dim=1)
 
         dataset.append(data_object)
+
+        #print("optimization step: i = ", i)
 
     #plot_forces(filename, dataset)
 
