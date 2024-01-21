@@ -157,7 +157,7 @@ def read_sections_between(file_path, start_marker, end_marker):
     return sections
 
 
-def read_outcar(file_path):
+def read_outcar(file_path, world_size, rank):
     # Replace these with your file path, start marker, and end marker
     supercell_start_marker = 'VOLUME and BASIS-vectors are now :'
     supercell_end_marker = 'FORCES acting on ions'
@@ -177,8 +177,11 @@ def read_outcar(file_path):
     # Read sections between specified markers
     result_atomic_structure_sections = read_sections_between(file_path, atomic_structure_start_marker, atomic_structure_end_marker)
 
+    local_result_supercell = list(nsplit(result_supercell, world_size))[rank]
+    local_result_atomic_structure_sections = list(nsplit(result_atomic_structure_sections, world_size))[rank]
+
     # Extract POSITION and TOTAL-FORCE from each section
-    for i, (supercell_section, atomic_structure_section) in enumerate(zip(result_supercell, result_atomic_structure_sections), start=1):
+    for i, (supercell_section, atomic_structure_section) in enumerate(zip(local_result_supercell, local_result_atomic_structure_sections), start=1):
 
         # Extract POSITION and TOTAL-FORCE into PyTorch tensors
         supercell = extract_supercell(supercell_section)
@@ -224,7 +227,8 @@ class VASPDataset(AbstractBaseDataset):
 
         global_files_list = os.listdir(dirpath)
         #local_files_list = list(nsplit(global_files_list, self.world_size))[self.rank]
-        local_dir_list = list(nsplit(global_files_list, self.world_size))[self.rank]
+        #local_dir_list = list(nsplit(global_files_list, self.world_size))[self.rank]
+        local_dir_list = global_files_list
 
         # Iterate over the files
         """
@@ -248,7 +252,7 @@ class VASPDataset(AbstractBaseDataset):
                     # If you want to work with the full path, you can join the directory path and file name
                     file_path = os.path.join(dirpath, dir_name, file_name)
 
-                    temp_dataset, _ = read_outcar(file_path)
+                    temp_dataset, _ = read_outcar(file_path, self.world_size, self.rank)
 
                     for data_object in temp_dataset:
                         if data_object is not None:
