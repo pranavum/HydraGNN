@@ -32,12 +32,12 @@
             "num_filters": 126,
             "edge_features": ["length", "polar_angle", "azimutal_angle"],
 	        "periodic_boundary_conditions": true,
-            "hidden_dim": 50,
+            "hidden_dim": 200,
             "num_conv_layers": 3,
             "output_heads": {
                 "node": {
                     "num_headlayers": 2,
-                    "dim_headlayers": [50,25],
+                    "dim_headlayers": [200,200],
                     "type": "mlp"
                 }
             },
