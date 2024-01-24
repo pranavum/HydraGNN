@@ -298,6 +298,9 @@ def objective(trial):
     num_headlayers = trial.suggest_int('num_headlayers', 1, 3)
     dim_headlayers = [trial.suggest_int(f'dim_headlayer_{i}', 50, 300) for i in range(num_headlayers)]
 
+    # Add the "model_type" hyperparameter
+    model_type = trial.suggest_categorical('model_type', ['EGNN', 'PNA', 'SchNet'])
+
     # Update the config dictionary with the suggested hyperparameters
     config["NeuralNetwork"]["Architecture"]["hidden_dim"] = hidden_dim
     config["NeuralNetwork"]["Architecture"]["num_conv_layers"] = num_conv_layers
@@ -316,8 +319,6 @@ def objective(trial):
     comm.Barrier()
 
     hydragnn.utils.save_config(config, log_name)
-
-    timer.stop()
 
     model = hydragnn.models.create_model_config(
         config=config["NeuralNetwork"],
@@ -528,6 +529,8 @@ if __name__ == "__main__":
     if args.ddstore:
         os.environ["HYDRAGNN_AGGR_BACKEND"] = "mpi"
         os.environ["HYDRAGNN_USE_ddstore"] = "1"
+
+    timer.stop()
 
     # Choose the sampler (e.g., TPESampler or RandomSampler)
     sampler = optuna.samplers.TPESampler(consider_prior=True, consider_magic_clip=False)
