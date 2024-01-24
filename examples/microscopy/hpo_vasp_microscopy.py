@@ -364,7 +364,7 @@ def objective(trial):
         gp.finalize()
 
     # Return the metric to minimize (e.g., validation loss)
-    val_error, tasks_error = hydragnn.validate(val_loader, model, verbosity, reduce_ranks=True)
+    val_error, tasks_error = hydragnn.train.validate(val_loader, model, verbosity, reduce_ranks=True)
 
     return val_error
 
