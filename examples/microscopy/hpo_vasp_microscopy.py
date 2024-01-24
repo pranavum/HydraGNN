@@ -25,6 +25,7 @@ from hydragnn.preprocess.utils import RadiusGraphPBC
 from hydragnn.preprocess.utils import gather_deg
 
 import optuna
+import pandas as pd
 
 from hydragnn.utils.distributed import nsplit, get_device
 import hydragnn.utils.tracer as tr
@@ -273,7 +274,7 @@ class VASPDataset(AbstractBaseDataset):
 
 def objective(trial):
 
-    global config
+    global config, best_trial_id, best_validation_loss
 
     # Extract the unique trial ID
     trial_id = trial.number  # or trial_id = trial.trial_id
@@ -293,21 +294,23 @@ def objective(trial):
     # log("Command: {0}\n".format(" ".join([x for x in sys.argv])), rank=0)
 
     # Define the search space for hyperparameters
+    model_type = trial.suggest_categorical('model_type', ['EGNN', 'PNA', 'SchNet'])
     hidden_dim = trial.suggest_int('hidden_dim', 50, 300)
     num_conv_layers = trial.suggest_int('num_conv_layers', 1, 5)
     num_headlayers = trial.suggest_int('num_headlayers', 1, 3)
     dim_headlayers = [trial.suggest_int(f'dim_headlayer_{i}', 50, 300) for i in range(num_headlayers)]
 
-    # Add the "model_type" hyperparameter
-    model_type = trial.suggest_categorical('model_type', ['EGNN', 'PNA', 'SchNet'])
-
     # Update the config dictionary with the suggested hyperparameters
+    config["NeuralNetwork"]["Architecture"]["model_type"] = model_type
     config["NeuralNetwork"]["Architecture"]["hidden_dim"] = hidden_dim
     config["NeuralNetwork"]["Architecture"]["num_conv_layers"] = num_conv_layers
     #config["NeuralNetwork"]["Architecture"]["output_heads"]["node"]["num_headlayers"] = num_headlayers
     #config["NeuralNetwork"]["Architecture"]["output_heads"]["node"]["dim_headlayers"] = dim_headlayers
     config["NeuralNetwork"]["Architecture"]["output_heads"]["graph"]["num_headlayers"] = num_headlayers
     config["NeuralNetwork"]["Architecture"]["output_heads"]["graph"]["dim_headlayers"] = dim_headlayers
+
+    if model_type not in ['EGNN', 'SchNet', 'DimeNet']:
+        config["NeuralNetwork"]["Architecture"]["equivariance"] = False
 
 
     (train_loader, val_loader, test_loader,) = hydragnn.preprocess.create_dataloaders(
@@ -355,6 +358,7 @@ def objective(trial):
     hydragnn.utils.save_model(model, optimizer, log_name)
     hydragnn.utils.print_timers(verbosity)
 
+    """
     if tr.has("GPTLTracer"):
         import gptl4py as gp
 
@@ -363,11 +367,24 @@ def objective(trial):
             gp.pr_file(os.path.join("logs", log_name, "gp_timing.p%d" % rank))
         gp.pr_summary_file(os.path.join("logs", log_name, "gp_timing.summary"))
         gp.finalize()
+    """
 
     # Return the metric to minimize (e.g., validation loss)
-    val_error, tasks_error = hydragnn.train.validate(val_loader, model, verbosity, reduce_ranks=True)
+    validation_loss, tasks_loss = hydragnn.train.validate(val_loader, model, verbosity, reduce_ranks=True)
 
-    return val_error
+    # Move validation_loss to the CPU and convert to NumPy object
+    validation_loss = validation_loss.cpu().detach().numpy()
+
+    # Append trial results to the DataFrame
+    trial_results.loc[trial_id] = [trial_id, hidden_dim, num_conv_layers, num_headlayers, dim_headlayers, model_type, validation_loss]
+
+    # Update information about the best trial
+    if validation_loss < best_validation_loss:
+        best_validation_loss = validation_loss
+        best_trial_id = trial_id
+
+    # Return the metric to minimize (e.g., validation loss)
+    return validation_loss
 
 
 if __name__ == "__main__":
@@ -539,17 +556,33 @@ if __name__ == "__main__":
     # sampler = optuna.samplers.GridSampler(consider_prior=False)
     # sampler = optuna.samplers.NSGAIISampler(pop_size=100, crossover_prob=0.9, mutation_prob=0.1)
 
+    # Create an empty DataFrame to store trial results
+    trial_results = pd.DataFrame(columns=['Trial_ID', 'Hidden_Dim', 'Num_Conv_Layers', 'Num_Headlayers', 'Dim_Headlayers', 'Model_Type', 'Validation_Loss'])
+
+    # Variables to store information about the best trial
+    best_trial_id = None
+    best_validation_loss = float('inf')
 
     # Create a study object and optimize the objective function
     study = optuna.create_study(direction='minimize')
-    study.optimize(objective, n_trials=50)
+    study.optimize(objective, n_trials=5)
 
-    # Get the best hyperparameters
+    # Update the best trial information directly within the DataFrame
+    best_trial_info = pd.Series({'Trial_ID': best_trial_id, 'Best_Validation_Loss': best_validation_loss})
+    trial_results = trial_results.append(best_trial_info, ignore_index=True)
+
+    # Save the trial results to a CSV file
+    trial_results.to_csv('hpo_results.csv', index=False)
+
+    # Get the best hyperparameters and corresponding trial ID
     best_params = study.best_params
     print("Best Hyperparameters:", best_params)
 
     best_trial_id = study.best_trial.number  # or best_trial_id = study.best_trial.trial_id
+
+    # Print information about the best trial
     print("Best Trial ID:", best_trial_id)
+    print("Best Validation Loss:", best_validation_loss)
 
     sys.exit(0)
 
