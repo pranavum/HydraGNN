@@ -122,8 +122,8 @@ class LJDataset_VladTest(AbstractBaseDataset):
         data = create_graph_fromXYZ(data)
         data = compute_edge_lengths(data)
         data.edge_attr = data.edge_attr.to(torch.float32)
-        data = spherical_coordinates(data)
-        #data = cartesian_coordinates(data)
+        #data = spherical_coordinates(data)
+        data = cartesian_coordinates(data)
 
         #maintain directionality
         data.edge_index = data.edge_index[:,0:6]

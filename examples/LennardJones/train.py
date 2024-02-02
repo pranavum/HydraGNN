@@ -31,7 +31,7 @@ except ImportError:
     pass
 
 from torch_geometric.data import Data
-from torch_geometric.transforms import RadiusGraph, Distance, Spherical
+from torch_geometric.transforms import RadiusGraph, Distance, Spherical, LocalCartesian
 import torch
 import torch.distributed as dist
 
@@ -53,6 +53,7 @@ def info(*args, logtype="info", sep=" "):
 create_graph_fromXYZ = RadiusGraph(r=5.0)  # radius cutoff in angstrom
 compute_edge_lengths = Distance(norm=False, cat=True)
 spherical_coordinates = Spherical(norm=False, cat=False)
+cartesian_coordinates = LocalCartesian(norm=False, cat=False)
 
 
 class LJDataset(AbstractBaseDataset):
@@ -116,17 +117,17 @@ class LJDataset(AbstractBaseDataset):
 
         num_nodes = torch_data.shape[0]
 
-        energy_pre_translation_factor = -5.6
-        energy_pre_scaling_factor = 10 / num_nodes
+        energy_pre_translation_factor = 0.0
+        energy_pre_scaling_factor = 1.0 / num_nodes
         energy_per_atom_pretransformed = (total_energy - energy_pre_translation_factor) * energy_pre_scaling_factor
         forces = torch_data[:, [5, 6, 7]]
-        forces_pre_scaling_factor = 10
+        forces_pre_scaling_factor = 1.0
         forces_pre_scaled = forces * forces_pre_scaling_factor
 
         data = Data(
             supercell_size=torch_supercell.to(torch.float32),
             num_nodes=num_nodes,
-            forces_pre_scaling_factor=forces_pre_scaling_factor.to(torch.float32),
+            forces_pre_scaling_factor=torch.tensor(forces_pre_scaling_factor).to(torch.float32),
             forces_pre_scaled=forces_pre_scaled,
             pos=torch_data[:, [1, 2, 3]].to(torch.float32),
             x=torch.cat([torch_data[:, [0, 4]], forces_pre_scaled], axis=1).to(torch.float32),
@@ -135,7 +136,8 @@ class LJDataset(AbstractBaseDataset):
         data = create_graph_fromXYZ(data)
         data = compute_edge_lengths(data)
         data.edge_attr = data.edge_attr.to(torch.float32)
-        data = spherical_coordinates(data)
+        #data = spherical_coordinates(data)
+        data = cartesian_coordinates(data)
 
         return data
 
