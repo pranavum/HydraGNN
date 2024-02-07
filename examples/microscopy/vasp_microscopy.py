@@ -31,11 +31,15 @@ from hydragnn.utils.print_utils import iterate_tqdm, log
 
 from ase.io.vasp import read_vasp_out
 
+from generate_dictionaries_pure_elements import generate_dictionary_bulk_energies, generate_dictionary_elements
+
 try:
     from hydragnn.utils.adiosdataset import AdiosWriter, AdiosDataset
 except ImportError:
     pass
 
+energy_bulk_metals = generate_dictionary_bulk_energies()
+periodic_table = generate_dictionary_elements()
 
 def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
@@ -157,6 +161,49 @@ def read_sections_between(file_path, start_marker, end_marker):
     return sections
 
 
+def read_outcar_pure_elements_ground_state(file_path):
+    # Replace these with your file path, start marker, and end marker
+    supercell_start_marker = 'VOLUME and BASIS-vectors are now :'
+    supercell_end_marker = 'FORCES acting on ions'
+    atomic_structure_start_marker = 'POSITION                                       TOTAL-FORCE (eV/Angst)'
+    atomic_structure_end_marker = 'stress matrix after NEB project (eV)'
+    #atomic_structure_end_marker = 'ENERGY OF THE ELECTRON-ION-THERMOSTAT SYSTEM (eV)'
+
+    dataset = []
+
+    full_string = file_path
+    filename = full_string.split("/")[-1]
+
+    # Read sections between specified markers
+    result_supercell = read_sections_between(file_path, supercell_start_marker,
+                                                             supercell_end_marker)
+
+    # Read sections between specified markers
+    result_atomic_structure_sections = read_sections_between(file_path, atomic_structure_start_marker, atomic_structure_end_marker)
+
+    supercell_section = result_supercell[-1]
+    atomic_structure_section = result_atomic_structure_sections[-1]
+
+    # Extract POSITION and TOTAL-FORCE into PyTorch tensors
+    supercell = extract_supercell(supercell_section)
+    positions, forces, energy = extract_positions_forces_energy(atomic_structure_section)
+
+    data_object = Data()
+
+    data_object.pos = positions
+    data_object.supercell_size = supercell
+    data_object.forces = forces
+    data_object.energy = energy
+    data_object.y = energy
+    atom_numbers = extract_atom_species(file_path)
+    data_object.atom_numbers = atom_numbers
+    data_object.x = torch.cat((atom_numbers, positions, forces), dim=1)
+
+    dataset.append(data_object)
+
+    return dataset, atom_numbers.flatten().tolist()
+
+
 def read_outcar(file_path, world_size, rank):
     # Replace these with your file path, start marker, and end marker
     supercell_start_marker = 'VOLUME and BASIS-vectors are now :'
@@ -192,11 +239,29 @@ def read_outcar(file_path, world_size, rank):
         data_object.pos = positions
         data_object.supercell_size = supercell
         data_object.forces = forces
-        data_object.energy = energy
-        data_object.y = energy
         atom_numbers = extract_atom_species(file_path)
         data_object.atom_numbers = atom_numbers
         data_object.x = torch.cat((atom_numbers, positions, forces), dim=1)
+
+        # compute the cohesive energy by removing the linear term of the energy from the total energy of the system
+        # Count occurrences of each element
+        element_counts = {}
+        for atom_number in atom_numbers:
+            if atom_number.item() not in element_counts:
+                element_counts[atom_number.item()] = 0
+            element_counts[atom_number.item()] += 1
+
+        # Calculate total number of atoms
+        total_atoms = data_object.pos.shape[0]
+
+        # Calculate ratio for each element
+        element_ratios = {element: count / total_atoms for element, count in element_counts.items()}
+
+        for item in element_ratios.keys():
+            energy -= element_ratios[item] * energy_bulk_metals[periodic_table[item]]
+
+        data_object.energy = energy
+        data_object.y = energy
 
         dataset.append(data_object)
 
@@ -209,6 +274,8 @@ def read_outcar(file_path, world_size, rank):
 
 
 class VASPDataset(AbstractBaseDataset):
+
+    global energy_bulk_metals
 
     def __init__(self, dirpath, var_config, dist=False):
         super().__init__()
@@ -244,6 +311,25 @@ class VASPDataset(AbstractBaseDataset):
                     data_object = transform_coordinates(data_object)
                     self.dataset.append(data_object)
         """
+
+        #Extract information about ground state energy of bulk metals
+
+        if os.path.isdir(os.path.join(dirpath, "../", "Bulk-M-and-X")):
+            files = os.listdir(os.path.join(dirpath, "../", "Bulk-M-and-X"))
+            outcar_files = [file for file in files if file.startswith("OUTCAR")]
+            for file_name in outcar_files:
+                # If you want to work with the full path, you can join the directory path and file name
+                file_path = os.path.join(os.path.join(dirpath, "../", "Bulk-M-and-X/", file_name))
+
+                element = file_name.replace("OUTCAR_", "")
+                dataset, _ = read_outcar_pure_elements_ground_state(file_path)
+
+                assert len(dataset)==1, 'bulk metal calculation not imported correctly'
+
+                energy_bulk_metals[element] = dataset[0].y.item()
+
+                print(element, " - ", str(dataset[0].y.item()))
+
         for dir_name in local_dir_list:
             if os.path.isdir(os.path.join(dirpath, dir_name)):
                 files = os.listdir(os.path.join(dirpath, dir_name))
