@@ -47,6 +47,87 @@ def poscar_to_torch_geometric(filename):
     return data
 
 
+def gradient_descent_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1000):
+    """
+    Conjugate gradient optimization for structure optimization of atomistic structures using PyTorch tensors.
+
+    Parameters:
+        energy_function (callable): A function that computes the energy given atomic positions.
+        gradient_function (callable): A function that computes the gradient of energy given atomic positions.
+        initial_positions (torch.Tensor): Initial atomic positions.
+        tol (float): Tolerance for convergence.
+        max_iter (int): Maximum number of iterations.
+
+    Returns:
+        torch.Tensor: Optimized atomic positions.
+        float: Final energy.
+    """
+
+    # Extract atomic positions
+    positions = torch.tensor(data_object.pos.clone().detach(), dtype=torch.float)
+
+    def energy_function(positions):
+        global data_object
+        data_object_aux = data_object.clone().detach()
+        #update coordinates
+        data_object_aux.pos = positions
+        # update nodal features
+        data_object_aux.x[:, 1:] = positions
+        # update edge features after updating coordinates
+        data_object_aux = transform_coordinates(data_object_aux)
+        predictions = hydragnn_model(data_object_aux)
+        energy = predictions[0]
+        return energy
+
+    def gradient_function(positions):
+        global data_object
+        data_object_aux = data_object.clone().detach()
+        #update coordinates
+        data_object_aux.pos = positions
+        # update nodal features
+        data_object_aux.x[:, 1:] = positions
+        # update edge features after updating coordinates
+        data_object_aux = transform_coordinates(data_object_aux)
+        predictions = hydragnn_model(data_object_aux)
+        forces = predictions[0]
+        return forces
+
+    #energy = energy_function(positions)
+    gradient = gradient_function(positions)
+
+    print("Norm of gradients: ", torch.norm(gradient, p=1).item())
+
+    for _ in range(max_iter):
+        # Line search
+        # Assuming gradient is an Nx3 tensor
+        # Compute numerator and denominator separately
+
+        alpha = 1e-4
+
+        # Update position
+        new_positions = positions - gradient * alpha
+
+        # Update gradient
+        new_gradient = gradient_function(new_positions)
+
+        displacement = torch.norm(new_positions - positions, p=1)
+        norm_forces = torch.norm(new_gradient, p=1)
+        print("Norm of atomic displacements: ", displacement.item(), " - Norm of atomic forces: ", norm_forces.item())
+        #print(new_gradient)
+
+        # Check convergence
+        if displacement < tol:
+            break
+
+        # Update positions and gradient
+        positions = new_positions.clone().detach().requires_grad_(True)
+        gradient = new_gradient
+        energy = energy_function(positions)
+
+    return positions.detach(), energy, gradient
+
+
+
 def conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1000):
     """
     Conjugate gradient optimization for structure optimization of atomistic structures using PyTorch tensors.
@@ -64,28 +145,32 @@ def conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1
     """
 
     # Extract atomic positions
-    positions = torch.tensor(data_object.pos, dtype=torch.float)
+    positions = torch.tensor(data_object.pos.clone().detach(), dtype=torch.float)
 
     def energy_function(positions):
         global data_object
-        data_object.pos = positions
-
-        data_object = transform_coordinates(data_object)
-        data_object.x[:, 1:] = positions
-        data_object = transform_coordinates(data_object)
-        predictions = hydragnn_model(data_object)
+        data_object_aux = data_object.clone().detach()
+        #update coordinates
+        data_object_aux.pos = positions
+        # update nodal features
+        data_object_aux.x[:, 1:] = positions
+        # update edge features after updating coordinates
+        data_object_aux = transform_coordinates(data_object_aux)
+        predictions = hydragnn_model(data_object_aux)
         energy = predictions[0]
-
         return energy
 
     def gradient_function(positions):
         global data_object
-        data_object.pos = positions
-        data_object.x[:, 1:] = positions
-        data_object = transform_coordinates(data_object)
-        predictions = hydragnn_model(data_object)
+        data_object_aux = data_object.clone().detach()
+        #update coordinates
+        data_object_aux.pos = positions
+        # update nodal features
+        data_object_aux.x[:, 1:] = positions
+        # update edge features after updating coordinates
+        data_object_aux = transform_coordinates(data_object_aux)
+        predictions = hydragnn_model(data_object_aux)
         forces = predictions[0]
-
         return forces
 
     #energy = energy_function(positions)
@@ -94,23 +179,32 @@ def conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1
 
     for _ in range(max_iter):
         # Line search
-        alpha = torch.dot(gradient, gradient) / torch.dot(conjugate_direction,
-                                                          gradient_function(positions + alpha * conjugate_direction))
+        # Compute numerator and denominator separately
+        numerator_alpha = torch.sum(gradient * gradient, dim=1)
+        denominator_alpha = torch.sum(conjugate_direction * gradient_function(positions + conjugate_direction), dim=1)
+        alpha = numerator_alpha / denominator_alpha
 
         # Update position
-        new_positions = positions + alpha * conjugate_direction
+        new_positions = positions + conjugate_direction * alpha.view(-1, 1)
 
         # Update gradient
         new_gradient = gradient_function(new_positions)
 
         # Calculate beta (Fletcher-Reeves update)
-        beta = torch.dot(new_gradient, new_gradient) / torch.dot(gradient, gradient)
+        numerator_beta = torch.sum(new_gradient * new_gradient, dim=1)
+        denominator_beta = torch.sum(gradient * gradient, dim=1)
+        beta = numerator_beta / denominator_beta
 
         # Update conjugate direction
-        conjugate_direction = -new_gradient + beta * conjugate_direction
+        conjugate_direction = -new_gradient + conjugate_direction * beta.view(-1, 1)
+
+        mean_displacement = torch.norm(new_positions - positions, p=1)/new_positions.shape[0]
+        norm_forces = torch.norm(new_gradient, p=1)
+        print("Norm of atomic displacements: ", mean_displacement .item(), " - Norm of atomic forces: ", norm_forces.item())
+        #print(new_gradient)
 
         # Check convergence
-        if torch.norm(new_positions - positions) < tol:
+        if mean_displacement < tol:
             break
 
         # Update positions and gradient
@@ -118,7 +212,7 @@ def conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1
         gradient = new_gradient
         energy = energy_function(positions)
 
-    return positions.detach(), energy
+    return positions.detach(), energy, gradient
 
 
 from torch.optim import LBFGS
@@ -254,7 +348,7 @@ if __name__ == "__main__":
     )
 
     # Read the POSCAR file
-    poscar_filename = "./POSCAR_1"
+    poscar_filename = "./mos2-B_Vacancy-Metal-06A.vasp"
 
     atoms = read(poscar_filename, format='vasp')
 
@@ -269,7 +363,8 @@ if __name__ == "__main__":
     load_existing_model(hydragnn_model, modelname, path="./logs/")
     hydragnn_model.eval()
 
-    optimized_positions = conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1000)
+    #optimized_positions, energy, forces = gradient_descent_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=100)
+    optimized_positions, energy, forces = conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-1, max_iter=1000)
 
     # Convert PyTorch tensor to NumPy array
     optimized_positions_np = optimized_positions.numpy()
@@ -278,5 +373,6 @@ if __name__ == "__main__":
     atoms.set_positions(optimized_positions_np)
 
     # Write the updated positions to a new POSCAR file with direct coordinates
-    write('new_poscar.vasp', atoms, format='vasp', direct=True)
+    poscar_filename_tmp = poscar_filename.replace('.vasp', '')
+    write(poscar_filename_tmp+'_HydraGNN_optimized.vasp', atoms, format='vasp', direct=True)
 
