@@ -73,6 +73,8 @@ def gradient_descent_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=100
         data_object_aux.pos = positions
         # update nodal features
         data_object_aux.x[:, 1:] = positions
+        # updated connectivity of the graph
+        data_object = add_edges_pbc(data_object)
         # update edge features after updating coordinates
         data_object_aux = transform_coordinates(data_object_aux)
         predictions = hydragnn_model(data_object_aux)
@@ -86,10 +88,12 @@ def gradient_descent_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=100
         data_object_aux.pos = positions
         # update nodal features
         data_object_aux.x[:, 1:] = positions
+        # updated connectivity of the graph
+        data_object = add_edges_pbc(data_object)
         # update edge features after updating coordinates
         data_object_aux = transform_coordinates(data_object_aux)
         predictions = hydragnn_model(data_object_aux)
-        forces = predictions[0]
+        forces = predictions[1]
         return forces
 
     #energy = energy_function(positions)
@@ -97,12 +101,12 @@ def gradient_descent_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=100
 
     print("Norm of gradients: ", torch.norm(gradient, p=1).item())
 
+    alpha = 1e-1
+
     for _ in range(max_iter):
         # Line search
         # Assuming gradient is an Nx3 tensor
         # Compute numerator and denominator separately
-
-        alpha = 1e-4
 
         # Update position
         new_positions = positions - gradient * alpha
@@ -112,7 +116,7 @@ def gradient_descent_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=100
 
         displacement = torch.norm(new_positions - positions, p=1)
         norm_forces = torch.norm(new_gradient, p=1)
-        print("Norm of atomic displacements: ", displacement.item(), " - Norm of atomic forces: ", norm_forces.item())
+        print("Norm of atomic displacements: ", displacement.item(), " - Norm of atomic forces: ", norm_forces.item(), " - Energy: ", energy_function(new_positions))
         #print(new_gradient)
 
         # Check convergence
@@ -128,7 +132,7 @@ def gradient_descent_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=100
 
 
 
-def conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1000):
+def linear_conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1000):
     """
     Conjugate gradient optimization for structure optimization of atomistic structures using PyTorch tensors.
 
@@ -170,7 +174,7 @@ def conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1
         # update edge features after updating coordinates
         data_object_aux = transform_coordinates(data_object_aux)
         predictions = hydragnn_model(data_object_aux)
-        forces = predictions[0]
+        forces = predictions[1]
         return forces
 
     #energy = energy_function(positions)
@@ -202,6 +206,135 @@ def conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1
         norm_forces = torch.norm(new_gradient, p=1)
         print("Norm of atomic displacements: ", mean_displacement .item(), " - Norm of atomic forces: ", norm_forces.item())
         #print(new_gradient)
+
+        # Check convergence
+        if mean_displacement < tol:
+            break
+
+        # Update positions and gradient
+        positions = new_positions.clone().requires_grad_(True)
+        gradient = new_gradient
+        energy = energy_function(positions)
+
+    return positions.detach(), energy, gradient
+
+
+def line_search_wolfe(energy_function, gradient_function, position, direction, alpha_init=1.0, c1=1e-4, c2=0.9,
+                      max_iter=100):
+    """
+    Perform line search using the Wolfe conditions.
+
+    Parameters:
+        energy_function (callable): A function that computes the energy given atomic positions.
+        gradient_function (callable): A function that computes the gradient of energy given atomic positions.
+        position (torch.Tensor): Current atomic positions.
+        direction (torch.Tensor): Search direction.
+        alpha_init (float): Initial step size.
+        c1 (float): Armijo condition parameter.
+        c2 (float): Curvature condition parameter.
+        max_iter (int): Maximum number of iterations for line search.
+
+    Returns:
+        float: Step size that satisfies the Wolfe conditions.
+    """
+    alpha = alpha_init
+    energy_current = energy_function(position)
+    gradient_current = gradient_function(position)
+    slope = torch.sum(gradient_current * direction, dim=1)
+
+    for _ in range(max_iter):
+        energy_next = energy_function(position + alpha * direction)
+        if energy_next > energy_current + energy_function(position + c1 * alpha * gradient_current * slope.view(-1,1)) or (
+                energy_next >= energy_function(position + alpha * direction - c2 * alpha * gradient_current)):
+            # Armijo condition or Wolfe condition not satisfied
+            alpha *= 0.5
+        else:
+            gradient_next = gradient_function(position + alpha * direction)
+            if torch.dot(gradient_next, direction) >= c2 * slope:
+                # Curvature condition satisfied
+                break
+            elif torch.dot(gradient_next, direction) >= 0:
+                # Curvature condition not satisfied and gradient is positive
+                alpha *= 0.5
+            else:
+                # Curvature condition not satisfied and gradient is negative
+                alpha *= 2.0
+
+        print("Line search - energy values: ", energy_next.item())
+
+    return alpha
+
+
+def nonlinear_conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=1000):
+    """
+    Conjugate gradient optimization for non-linear convex optimization using PyTorch tensors.
+
+    Parameters:
+        energy_function (callable): A function that computes the energy given atomic positions.
+        gradient_function (callable): A function that computes the gradient of energy given atomic positions.
+        initial_positions (torch.Tensor): Initial atomic positions.
+        tol (float): Tolerance for convergence.
+        max_iter (int): Maximum number of iterations.
+
+    Returns:
+        torch.Tensor: Optimized atomic positions.
+        float: Final energy.
+    """
+
+    # Extract atomic positions
+    positions = torch.tensor(data_object.pos.clone().detach(), dtype=torch.float)
+
+    def energy_function(positions):
+        global data_object
+        data_object_aux = data_object.clone().detach()
+        #update coordinates
+        data_object_aux.pos = positions
+        # update nodal features
+        data_object_aux.x[:, 1:] = positions
+        # update edge features after updating coordinates
+        data_object_aux = transform_coordinates(data_object_aux)
+        predictions = hydragnn_model(data_object_aux)
+        energy = predictions[0]
+        return energy
+
+    def gradient_function(positions):
+        global data_object
+        data_object_aux = data_object.clone().detach()
+        #update coordinates
+        data_object_aux.pos = positions
+        # update nodal features
+        data_object_aux.x[:, 1:] = positions
+        # update edge features after updating coordinates
+        data_object_aux = transform_coordinates(data_object_aux)
+        predictions = hydragnn_model(data_object_aux)
+        forces = predictions[1]
+        return forces
+
+    energy = energy_function(positions)
+    gradient = gradient_function(positions)
+    conjugate_direction = -gradient
+
+    for _ in range(max_iter):
+        # Update position using line search
+        alpha = line_search_wolfe(energy_function, gradient_function, positions, conjugate_direction)
+        new_positions = positions + alpha * conjugate_direction
+
+        # Update gradient
+        new_gradient = gradient_function(new_positions)
+
+        # Calculate beta (Fletcher-Reeves update)
+        numerator_beta = torch.sum(new_gradient * new_gradient, dim=1)
+        denominator_beta = torch.sum(gradient * gradient, dim=1)
+        beta = numerator_beta / denominator_beta
+
+        # Update conjugate direction
+        conjugate_direction = -new_gradient + conjugate_direction * beta.view(-1, 1)
+
+        mean_displacement = torch.norm(new_positions - positions, p=1) / new_positions.shape[0]
+        norm_forces = torch.norm(new_gradient, p=1)
+        print("Norm of atomic displacements: ", mean_displacement.item(), " - Norm of atomic forces: ",
+              norm_forces.item())
+        # print(new_gradient)
 
         # Check convergence
         if mean_displacement < tol:
@@ -348,14 +481,14 @@ if __name__ == "__main__":
     )
 
     # Read the POSCAR file
-    poscar_filename = "./mos2-B_Vacancy-Metal-06A.vasp"
+    poscar_filename = "./mos2-B_Vacancy-Metal-06B.vasp"
 
     atoms = read(poscar_filename, format='vasp')
 
     # Convert ASE object into PyTorch-Geometric object
     data_object = poscar_to_torch_geometric(poscar_filename)
 
-    add_edges_pbc = get_radius_graph_pbc(radius=config["NeuralNetwork"]["Architecture"]["radius"], max_neighbours=config["NeuralNetwork"]["Architecture"]["max_neighbours"])
+    add_edges_pbc = get_radius_graph_pbc(radius=config["NeuralNetwork"]["Architecture"]["radius"], max_neighbours=20)
     data_object = add_edges_pbc(data_object)
 
     data_object = transform_coordinates(data_object)
@@ -363,8 +496,10 @@ if __name__ == "__main__":
     load_existing_model(hydragnn_model, modelname, path="./logs/")
     hydragnn_model.eval()
 
-    #optimized_positions, energy, forces = gradient_descent_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=100)
-    optimized_positions, energy, forces = conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-1, max_iter=1000)
+    maxiter = 10000
+
+    optimized_positions, energy, forces = gradient_descent_pytorch(data_object, hydragnn_model, tol=1e-5, max_iter=maxiter)
+    #optimized_positions, energy, forces = nonlinear_conjugate_gradient_pytorch(data_object, hydragnn_model, tol=1e-1, max_iter=maxiter)
 
     # Convert PyTorch tensor to NumPy array
     optimized_positions_np = optimized_positions.numpy()
