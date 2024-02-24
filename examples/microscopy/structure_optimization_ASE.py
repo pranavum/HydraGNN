@@ -77,6 +77,45 @@ class PyTorchCalculator(Calculator):
         self.results['forces'] = forces.detach().numpy()
 
 
+class PyTorchCalculatorSelfConsistent(Calculator):
+    implemented_properties = ['energy', 'forces']
+
+    def __init__(self, hydragnn_model):
+        Calculator.__init__(self)
+        self.model = hydragnn_model
+
+    def calculate(self, atoms=None, properties=['energy'],
+                  system_changes=all_changes):
+        Calculator.calculate(self, atoms, properties, system_changes)
+
+        positions = atoms.get_positions()
+        positions_tensor = torch.tensor(positions, requires_grad=False, dtype=torch.float)
+
+        # Extract atomic numbers
+        atomic_numbers = atoms.get_atomic_numbers()
+        atomic_numbers_torch = torch.tensor(atomic_numbers, dtype=torch.long).unsqueeze(1)
+
+        x = torch.cat((atomic_numbers_torch, positions_tensor), dim=1)
+
+        # Create the torch_geometric data object
+        data_object = Data(pos=positions_tensor, x=x, supercell_size=torch.tensor(atoms.cell.array).float())
+
+        add_edges_pbc = get_radius_graph_pbc(radius=config["NeuralNetwork"]["Architecture"]["radius"],
+                                             max_neighbours=20)
+        data_object = add_edges_pbc(data_object)
+
+        data_object = transform_coordinates(data_object)
+
+        data_object.pos.requires_grad = True
+
+        energy, _ = self.model(data_object)
+        grads_energy = torch.autograd.grad(outputs=energy, inputs=data_object.pos,
+                                           grad_outputs=data_object.num_nodes * torch.ones_like(energy),
+                                           retain_graph=False)[0]
+
+        self.results['energy'] = energy.item()
+        self.results['forces'] = grads_energy.detach().numpy()
+
 import json, os
 import logging
 from mpi4py import MPI
@@ -91,6 +130,7 @@ import hydragnn
 from hydragnn.utils.time_utils import Timer
 from hydragnn.utils.model import load_existing_model
 from hydragnn.models.create import create_model_config
+
 
 if __name__ == "__main__":
 
@@ -129,8 +169,11 @@ if __name__ == "__main__":
         hydragnn_model
     )
 
+    load_existing_model(hydragnn_model, modelname, path="./logs/")
+    hydragnn_model.eval()
+
     # Create an instance of your custom ASE calculator
-    calculator = PyTorchCalculator(hydragnn_model)
+    calculator = PyTorchCalculatorSelfConsistent(hydragnn_model)
 
     # Read the POSCAR file
     poscar_filename = "./mos2-B_Schottky-B.vasp"
@@ -144,9 +187,9 @@ if __name__ == "__main__":
     maxiter = 1000
 
     # Perform structure optimization
-    #optimizer = BFGS(atoms, maxstep=maxstep)
+    optimizer = BFGS(atoms, maxstep=maxstep)
     #optimizer = BFGSLineSearch(atoms, maxstep=maxstep)
-    optimizer = FIRE(atoms, maxstep=maxstep)
+    #optimizer = FIRE(atoms, maxstep=maxstep)
     optimizer.run()
     #optimizer.run(fsteps=maxiter)  # adjust convergence criteria as needed
 
