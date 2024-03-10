@@ -120,6 +120,7 @@ class LJDataset(AbstractBaseDataset):
         energy_pre_translation_factor = 0.0
         energy_pre_scaling_factor = 1.0 / num_nodes
         energy_per_atom_pretransformed = (total_energy - energy_pre_translation_factor) * energy_pre_scaling_factor
+        grad_energy_post_scaling_factor = 1.0/energy_pre_scaling_factor * torch.ones(num_nodes, 1)
         forces = torch_data[:, [5, 6, 7]]
         forces_pre_scaling_factor = 1.0
         forces_pre_scaled = forces * forces_pre_scaling_factor
@@ -127,6 +128,7 @@ class LJDataset(AbstractBaseDataset):
         data = Data(
             supercell_size=torch_supercell.to(torch.float32),
             num_nodes=num_nodes,
+            grad_energy_post_scaling_factor=grad_energy_post_scaling_factor,
             forces_pre_scaling_factor=torch.tensor(forces_pre_scaling_factor).to(torch.float32),
             forces_pre_scaled=forces_pre_scaled,
             pos=torch_data[:, [1, 2, 3]].to(torch.float32),
