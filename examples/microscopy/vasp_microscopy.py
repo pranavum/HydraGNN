@@ -188,6 +188,9 @@ def read_outcar_pure_elements_ground_state(file_path):
     supercell = extract_supercell(supercell_section)
     positions, forces, energy = extract_positions_forces_energy(atomic_structure_section)
 
+    # we need to keep track of this scaling factor to correctly rescale the gradients of the energy
+    grad_energy_post_scaling_factor = positions.shape[0] * torch.ones(positions.shape[0], 1)
+
     data_object = Data()
 
     data_object.pos = positions
@@ -198,6 +201,7 @@ def read_outcar_pure_elements_ground_state(file_path):
     atom_numbers = extract_atom_species(file_path)
     data_object.atom_numbers = atom_numbers
     data_object.x = torch.cat((atom_numbers, positions, forces), dim=1)
+    data_object.grad_energy_post_scaling_factor = grad_energy_post_scaling_factor
 
     dataset.append(data_object)
 

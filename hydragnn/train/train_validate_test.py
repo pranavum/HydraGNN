@@ -133,9 +133,13 @@ def train_validate_test(
         with profiler as prof:
             tr.enable()
             tr.start("train")
+            output_names=config['Variables_of_interest']['output_names']
+
             train_loss, train_taskserr = train(
-                train_loader, model, optimizer, verbosity, profiler=prof
-            )
+                    train_loader, model, optimizer, verbosity, profiler=prof,
+                    output_names=config['Variables_of_interest']['output_names']
+                )
+
             tr.stop("train")
             tr.disable()
             if epoch == 0:
@@ -394,9 +398,17 @@ def train(
     opt,
     verbosity,
     profiler=None,
+    output_names=None
 ):
     if profiler is None:
         profiler = Profiler()
+
+    if output_names is not None:
+        # Find indices of "total_energy" in the list
+        indices_energy = [i for i, name in enumerate(output_names) if name == "energy"]
+        indices_forces = [i for i, name in enumerate(output_names) if name == "forces"]
+        assert len(indices_energy) <= 1, 'multiple outputs are called total_energy'
+        assert len(indices_forces) <= 1, 'multiple outputs are called atomic_forces'
 
     total_error = torch.tensor(0.0, device=get_device())
     tasks_error = torch.zeros(model.module.num_heads, device=get_device())
@@ -425,13 +437,30 @@ def train(
         tr.stop("get_head_indices")
         tr.start("forward")
         with record_function("forward"):
+            if output_names is not None:
+                data.pos.requires_grad = True
             data = data.to(get_device())
             pred = model(data)
             loss, tasks_loss = model.module.loss(pred, data.y, head_index)
+            if len(indices_energy)>0 and len(indices_forces)>0:
+                grads_energy = torch.autograd.grad(outputs=pred[indices_energy[0]], inputs=data.pos,
+                                                   grad_outputs=torch.ones_like(pred[indices_energy[0]]), retain_graph=True)[0]
+                grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
+                grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
+                atomic_forces = data.y[head_index[indices_forces[0]]]
+                #self_consistency_loss = torch.nn.functional.l1_loss(grads_energy_reshaped, atomic_forces)
+                # since the forces are the negative gradiens, for the mismatch I need to compute the add instead of subtracting
+                self_consistency_loss1 = torch.sum(torch.abs(grads_energy_reshaped + atomic_forces))
+                self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_forces[0]]))
+                loss = loss + 1.0 * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
+
+                #print(f"self consistency loss1: {self_consistency_loss1}")
+                #print(f"self consistency loss2: {self_consistency_loss2}")
+
         tr.stop("forward")
         tr.start("backward")
         with record_function("backward"):
-            loss.backward()
+            loss.backward(retain_graph=False)
         tr.stop("backward")
         tr.start("opt_step")
         # print_peak_memory(verbosity, "Max memory allocated before optimizer step")
