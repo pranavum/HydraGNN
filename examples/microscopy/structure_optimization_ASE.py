@@ -110,11 +110,15 @@ class PyTorchCalculatorSelfConsistent(Calculator):
 
         energy, _ = self.model(data_object)
         grads_energy = torch.autograd.grad(outputs=energy, inputs=data_object.pos,
-                                           grad_outputs=data_object.num_nodes * torch.ones_like(energy),
+                                           grad_outputs=torch.ones_like(energy),
                                            retain_graph=False)[0]
 
+        grad_energy_post_scaling_factor = positions_tensor.shape[0] * torch.ones(positions_tensor.shape[0], 1)
+
+        grads_energy_rescaled = grad_energy_post_scaling_factor * grads_energy
+
         self.results['energy'] = energy.item()
-        self.results['forces'] = grads_energy.detach().numpy()
+        self.results['forces'] = grads_energy_rescaled.detach().numpy()
 
 import json, os
 import logging
@@ -174,9 +178,10 @@ if __name__ == "__main__":
 
     # Create an instance of your custom ASE calculator
     calculator = PyTorchCalculatorSelfConsistent(hydragnn_model)
+    #calculator = PyTorchCalculator(hydragnn_model)
 
     # Read the POSCAR file
-    poscar_filename = "./mos2-B_Schottky-B.vasp"
+    poscar_filename = "./test.vasp"
 
     atoms = read(poscar_filename, format='vasp')
 
@@ -184,11 +189,11 @@ if __name__ == "__main__":
     atoms.set_calculator(calculator)
 
     maxstep = 1e-1
-    maxiter = 1000
+    maxiter = 10000
 
     # Perform structure optimization
     optimizer = BFGS(atoms, maxstep=maxstep)
-    #optimizer = BFGSLineSearch(atoms, maxstep=maxstep)
+    optimizer = BFGSLineSearch(atoms, maxstep=maxstep)
     #optimizer = FIRE(atoms, maxstep=maxstep)
     optimizer.run()
     #optimizer.run(fsteps=maxiter)  # adjust convergence criteria as needed
