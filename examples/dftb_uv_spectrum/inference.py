@@ -117,7 +117,7 @@ for irun in range(1, 2):
     load_existing_model(model, modelname, path="./logs/")
 
     num_test_samples = len(testset)
-    mol_ID = [item.ID for item in testset]
+    mol_ID = [item.ID.item() for item in testset]
 
     # bins = [lower + x * (upper - lower) / length for x in range(length)]
     bins = range(length)
@@ -153,7 +153,7 @@ for irun in range(1, 2):
     plt.title(f'{model_name} $\mu$:{mean:.3f}, $\sigma$:{std:.3f}')
     plt.draw()
     plt.tight_layout()
-    plt.savefig(f"logs/{model_name}_{args.w_nm}nm_mse_bin.png")
+    plt.savefig(f"logs/{model_name}.png")
     plt.close(fig)
 
     mse_min_idx = np.argmin(error_mse)
@@ -170,14 +170,14 @@ for irun in range(1, 2):
         fig, ax = plt.subplots(1, 1)
         ax.plot(bins[::FRQ], test_data.y.detach().to('cpu')[::FRQ], color='black', label="TD-DFTB", linewidth=5, dashes=[1,0])
         ax.plot(bins[::FRQ], prediction[::FRQ], label=f"{model_name}", color='red', linewidth=5, dashes=[4,2])
-        plt.title("molecule ID: "+mol_ID[idx])
+        plt.title(f"molecule ID: {mol_ID[idx]}")
         plt.legend(fancybox=True,handlelength=1,shadow=True,loc='upper right',bbox_to_anchor=(1.025,1.0),ncol=1)
         plt.draw()
         plt.tight_layout()
         plt.xlim([0,plt_x_lim])
         plt.xticks(x_ticks, x_labels)
         # plt.ylim([-0.2, max(true_values_AE)+0.2])
-        plt.savefig(f"logs/{model_name}_{args.w_nm}nm_mse_{idx_str}.png")
+        plt.savefig(f"logs/{model_name}_mse_{idx_str}.png")
         plt.close(fig)
 
     #-------------------------------------------------
@@ -193,7 +193,7 @@ for irun in range(1, 2):
     plt.title(f'{model_name} $\mu$:{mean:.3f}, $\sigma$:{std:.3f}')
     plt.draw()
     plt.tight_layout()
-    plt.savefig(f"logs/{model_name}_{args.w_nm}nm_mae_bin.png")
+    plt.savefig(f"logs/{model_name}.png")
     plt.close(fig)
 
     mae_min_idx = np.argmin(error_mae)
@@ -210,7 +210,7 @@ for irun in range(1, 2):
         fig, ax = plt.subplots(1, 1)
         ax.plot(bins[::FRQ], test_data.y.detach().to('cpu')[::FRQ], color='black', label="TD-DFTB", linewidth=5, dashes=[1,0])
         ax.plot(bins[::FRQ], prediction[::FRQ], label=f"{model_name}", color='red', linewidth=5, dashes=[4,2])
-        plt.title("molecule ID: "+mol_ID[idx])
+        plt.title(f"molecule ID: {mol_ID[idx]}")
         plt.legend(fancybox=True,handlelength=1,shadow=True,loc='upper right',bbox_to_anchor=(1.025,1.0),ncol=1)
         plt.draw()
         plt.tight_layout()
