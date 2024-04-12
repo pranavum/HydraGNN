@@ -60,6 +60,11 @@ def main():
     parser.add_argument(
         "--multi_model_list", help="multidataset list", default="OC2020"
     )
+    parser.add_argument(
+        "--tmpfs",
+        default=None,
+        help="Transient storage space such as /mnt/bb/$USER which can be used as a temporary scratch space for caching and/or extracting data. The location must exist before use by HydraGNN.",
+    )
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -166,6 +171,8 @@ def main():
     timer = Timer("load_data")
     timer.start()
 
+    tmpfs=args.tmpfs
+
     if args.format == "adios":
         info("Adios load")
         assert not (args.shmem and args.ddstore), "Cannot use both ddstore and shmem"
@@ -175,7 +182,10 @@ def main():
             "ddstore": args.ddstore,
             "ddstore_width": args.ddstore_width,
         }
-        fname = os.path.join(os.path.dirname(__file__), "./dataset/%s.bp" % modelname)
+        if tmpfs is None:
+            fname = os.path.join(os.path.dirname(__file__), "./dataset/%s.bp" % modelname)
+        else:
+            fname = os.path.join(tmpfs, "%s.bp" % modelname)
         trainset = AdiosDataset(fname, "trainset", comm, **opt, var_config=var_config)
         valset = AdiosDataset(fname, "valset", comm, **opt, var_config=var_config)
         testset = AdiosDataset(fname, "testset", comm, **opt, var_config=var_config)
