@@ -4,7 +4,7 @@
 #SBATCH -J HydraGNN
 #SBATCH -o job-%j.out
 #SBATCH -e job-%j.out
-#SBATCH -t 2:00:00
+#SBATCH -t 0:30:00
 #SBATCH -p batch
 #SBATCH -N 4
 #SBATCH -q debug
@@ -76,8 +76,8 @@ export DEEPHYPER_DB_HOST=$HOST
 #redis-server $REDIS_CONF &
 #popd
 
-export PFS_DATASET_DIR = "examples/multidataset_hpo/dataset" 
-export NVME_DIR = "/mnt/bb/$USER"
+export PFS_DATASET_DIR="./examples/multidataset_hpo/dataset" 
+export NVME_DIR="/mnt/bb/$USER"
 
 # SBCAST file from Orion to NVMe -- NOTE: ``-C nvme`` is required to use the NVMe drive
 # Copy .bp files from source to destination using sbcast
