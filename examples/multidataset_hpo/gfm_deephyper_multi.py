@@ -59,7 +59,6 @@ def run(trial, dequed=None):
             f"--ntasks-per-node=8 --gpus-per-node=8",
             f"--cpus-per-task {OMP_NUM_THREADS} --threads-per-core 1 --cpu-bind threads",
             f"--gpus-per-task=1 --gpu-bind=closest",
-            f"wrap_omniperf.bash",
             f"--export=ALL,{master_addr},HYDRAGNN_MAX_NUM_BATCH=100,HYDRAGNN_USE_VARIABLE_GRAPH_SIZE=1,HYDRAGNN_AGGR_BACKEND=mpi",
             f"--nodelist={nodelist}",
             f"--output {DEEPHYPER_LOG_DIR}/output_{SLURM_JOB_ID}_{trial.id}.txt",
@@ -81,10 +80,10 @@ def run(trial, dequed=None):
             f"--multi",
             f"--ddstore",
             f'--multi_model_list="ANI1x,MPTrj,OC2020-20M,OC2022,qm7x"',
-            f'--tmpfs "/mnt/bb/${{USER}}/"',
+            f'--tmpfs "/mnt/bb/$USER/"',
             ## debugging
             ##f'--multi_model_list="ANI1x"',
-            f"--num_epoch=5",
+            f"--num_epoch=10",
             f"--log={log_name}",
         ]
     )
@@ -99,7 +98,8 @@ def run(trial, dequed=None):
             line = fout.readline()
             matches = re.findall(pattern, line)
             if matches:
-                output = float(matches[-1][0])
+                ## DeepHyper maximizing by default
+                output = - float(matches[-1][0])
             if not line:
                 break
         fout.close()
@@ -133,8 +133,8 @@ if __name__ == "__main__":
     # Define the search space for hyperparameters
     problem.add_hyperparameter((2, 6), "num_conv_layers")  # discrete parameter
     problem.add_hyperparameter((100, 2000), "hidden_dim")  # discrete parameter
-    problem.add_hyperparameter((1, 3), "num_headlayers")  # discrete parameter
-    problem.add_hyperparameter((100, 1000), "dim_headlayers")  # discrete parameter
+    problem.add_hyperparameter((2, 3), "num_headlayers")  # discrete parameter
+    problem.add_hyperparameter((300, 1000), "dim_headlayers")  # discrete parameter
     problem.add_hyperparameter(
         ["EGNN", "SchNet", "PNA"], "model_type"
     )  # categorical parameter
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     )
 
     timeout = None
-    results = search.search(max_evals=10, timeout=timeout)
+    results = search.search(max_evals=200, timeout=timeout)
     print(results)
 
     sys.exit(0)
