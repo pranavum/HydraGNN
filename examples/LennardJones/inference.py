@@ -100,7 +100,8 @@ def getcolordensity(xdata, ydata):
 def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
+def predict_test(argv=None):
 
     modelname = "LJ"
 
@@ -169,6 +170,7 @@ if __name__ == "__main__":
     model.eval()
 
     variable_index = 0
+    outputs = {}
     for output_name, output_type, output_dim in zip(config["NeuralNetwork"]["Variables_of_interest"]["output_names"], config["NeuralNetwork"]["Variables_of_interest"]["type"], config["NeuralNetwork"]["Variables_of_interest"]["output_dim"]):
 
         test_MAE = 0.0
@@ -204,5 +206,7 @@ if __name__ == "__main__":
         plt.savefig(f"./{output_name}_Scatterplot" + ".png", dpi=400)
 
         print(f"Test MAE {output_name}: ", test_MAE)
+        outputs[output_name] = test_MAE
 
         variable_index += 1
+    return outputs

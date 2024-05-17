@@ -150,7 +150,8 @@ class LJDataset(AbstractBaseDataset):
         return self.dataset[idx]
 
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
+def train_model(argv=None):
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -160,7 +161,7 @@ if __name__ == "__main__":
         action="store_true",
         help="preprocess only (no training)",
     )
-    parser.add_argument("--inputfile", help="input file", type=str, default="LJ.json")
+    parser.add_argument("--inputfile", help="input file", type=str, default="LJ_multitask.json")
     parser.add_argument("--mae", action="store_true", help="do mae calculation")
     parser.add_argument("--ddstore", action="store_true", help="ddstore dataset")
     parser.add_argument("--ddstore_width", type=int, help="ddstore width", default=None)
@@ -184,7 +185,7 @@ if __name__ == "__main__":
         dest="format",
         const="pickle",
     )
-    parser.set_defaults(format="adios")
+    parser.set_defaults(format="pickle")
     args = parser.parse_args()
 
     graph_feature_names = ["total_energy"]
@@ -291,19 +292,19 @@ if __name__ == "__main__":
                 use_subdir=True,
             )
 
-        if args.format == "adios":
-            ## adios
-            fname = os.path.join(
-                os.path.dirname(__file__), "./dataset/%s.bp" % modelname
-            )
-            adwriter = AdiosWriter(fname, comm)
-            adwriter.add("trainset", trainset)
-            adwriter.add("valset", valset)
-            adwriter.add("testset", testset)
-            # adwriter.add_global("minmax_node_feature", total.minmax_node_feature)
-            # adwriter.add_global("minmax_graph_feature", total.minmax_graph_feature)
-            adwriter.add_global("pna_deg", deg)
-            adwriter.save()
+        # if args.format == "adios":
+        #     ## adios
+        #     fname = os.path.join(
+        #         os.path.dirname(__file__), "./dataset/%s.bp" % modelname
+        #     )
+        #     adwriter = AdiosWriter(fname, comm)
+        #     adwriter.add("trainset", trainset)
+        #     adwriter.add("valset", valset)
+        #     adwriter.add("testset", testset)
+        #     # adwriter.add_global("minmax_node_feature", total.minmax_node_feature)
+        #     # adwriter.add_global("minmax_graph_feature", total.minmax_graph_feature)
+        #     adwriter.add_global("pna_deg", deg)
+        #     adwriter.save()
 
         sys.exit(0)
 
@@ -311,20 +312,20 @@ if __name__ == "__main__":
     tr.disable()
     timer = Timer("load_data")
     timer.start()
-    if args.format == "adios":
-        info("Adios load")
-        assert not (args.shmem and args.ddstore), "Cannot use both ddstore and shmem"
-        opt = {
-            "preload": False,
-            "shmem": args.shmem,
-            "ddstore": args.ddstore,
-            "ddstore_width": args.ddstore_width,
-        }
-        fname = os.path.join(os.path.dirname(__file__), "./dataset/%s.bp" % modelname)
-        trainset = AdiosDataset(fname, "trainset", comm, **opt)
-        valset = AdiosDataset(fname, "valset", comm, **opt)
-        testset = AdiosDataset(fname, "testset", comm, **opt)
-    elif args.format == "pickle":
+    # if args.format == "adios":
+    #     info("Adios load")
+    #     assert not (args.shmem and args.ddstore), "Cannot use both ddstore and shmem"
+    #     opt = {
+    #         "preload": False,
+    #         "shmem": args.shmem,
+    #         "ddstore": args.ddstore,
+    #         "ddstore_width": args.ddstore_width,
+    #     }
+    #     fname = os.path.join(os.path.dirname(__file__), "./dataset/%s.bp" % modelname)
+    #     trainset = AdiosDataset(fname, "trainset", comm, **opt)
+    #     valset = AdiosDataset(fname, "valset", comm, **opt)
+    #     testset = AdiosDataset(fname, "testset", comm, **opt)
+    if args.format == "pickle":
         info("Pickle load")
         basedir = os.path.join(
             os.path.dirname(__file__), "dataset", "%s.pickle" % modelname
@@ -352,11 +353,6 @@ if __name__ == "__main__":
             trainset.pna_deg = pna_deg
     else:
         raise NotImplementedError("No supported format: %s" % (args.format))
-
-    info(
-        "trainset,valset,testset size: %d %d %d"
-        % (len(trainset), len(valset), len(testset))
-    )
 
     if args.ddstore:
         os.environ["HYDRAGNN_AGGR_BACKEND"] = "mpi"
@@ -417,4 +413,4 @@ if __name__ == "__main__":
             gp.pr_file(os.path.join("logs", log_name, "gp_timing.p%d" % rank))
         gp.pr_summary_file(os.path.join("logs", log_name, "gp_timing.summary"))
         gp.finalize()
-    sys.exit(0)
+    #sys.exit(0)
