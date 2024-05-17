@@ -45,7 +45,9 @@
       },
       "task_weights": [
         1, 1
-      ]
+      ],
+      "alpha_1": 0.0,
+      "alpha_2": 0.0
     },
     "Variables_of_interest": {
       "input_node_features": [0],

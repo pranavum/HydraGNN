@@ -33,6 +33,10 @@ def create_model_config(
     verbosity: int = 0,
     use_gpu: bool = True,
 ):
+
+    config["Architecture"].setdefault("alpha_1", 1.0)
+    config["Architecture"].setdefault("alpha_2", 0.0)
+
     return create_model(
         config["Architecture"]["model_type"],
         config["Architecture"]["input_dim"],
@@ -64,6 +68,8 @@ def create_model_config(
         config["Architecture"]["equivariance"],
         verbosity,
         use_gpu,
+        config["Architecture"]["alpha_1"],
+        config["Architecture"]["alpha_2"],
     )
 
 
@@ -99,6 +105,8 @@ def create_model(
     equivariance: bool = False,
     verbosity: int = 0,
     use_gpu: bool = True,
+    alpha_1 = 1.0,
+    alpha_2 = 1.0
 ):
     timer = Timer("create_model")
     timer.start()
@@ -122,6 +130,8 @@ def create_model(
             initial_bias=initial_bias,
             num_conv_layers=num_conv_layers,
             num_nodes=num_nodes,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
         )
 
     elif model_type == "PNA":
@@ -142,6 +152,8 @@ def create_model(
             initial_bias=initial_bias,
             num_conv_layers=num_conv_layers,
             num_nodes=num_nodes,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
         )
 
     elif model_type == "GAT":
@@ -164,6 +176,8 @@ def create_model(
             initial_bias=initial_bias,
             num_conv_layers=num_conv_layers,
             num_nodes=num_nodes,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
         )
 
     elif model_type == "MFC":
@@ -183,6 +197,8 @@ def create_model(
             initial_bias=initial_bias,
             num_conv_layers=num_conv_layers,
             num_nodes=num_nodes,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
         )
 
     elif model_type == "CGCNN":
@@ -200,6 +216,8 @@ def create_model(
             initial_bias=initial_bias,
             num_conv_layers=num_conv_layers,
             num_nodes=num_nodes,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
         )
 
     elif model_type == "SAGE":
@@ -216,6 +234,8 @@ def create_model(
             freeze_conv=freeze_conv,
             num_conv_layers=num_conv_layers,
             num_nodes=num_nodes,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
         )
 
     elif model_type == "SchNet":
@@ -240,6 +260,8 @@ def create_model(
             initial_bias=initial_bias,
             num_conv_layers=num_conv_layers,
             num_nodes=num_nodes,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
         )
 
     elif model_type == "DimeNet":
@@ -278,6 +300,8 @@ def create_model(
             initial_bias=initial_bias,
             num_conv_layers=num_conv_layers,
             num_nodes=num_nodes,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
         )
 
     elif model_type == "EGNN":
@@ -297,6 +321,8 @@ def create_model(
             initial_bias=initial_bias,
             num_conv_layers=num_conv_layers,
             num_nodes=num_nodes,
+            alpha_1=alpha_1,
+            alpha_2=alpha_2,
         )
 
     else:

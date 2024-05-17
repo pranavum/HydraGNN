@@ -485,10 +485,10 @@ def train(
                 # since the forces are the negative gradiens, for the mismatch I need to compute the add instead of subtracting
                 self_consistency_loss1 = torch.sum(torch.abs(grads_energy_reshaped + atomic_forces))
                 self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_atomic_forces[0]]))
-                loss = loss + 1.0 * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
+                loss = loss + model.alpha_1 * (self_consistency_loss1) + model.alpha_2 * (self_consistency_loss2)
 
-                #print(f"self consistency loss1: {self_consistency_loss1}")
-                #print(f"self consistency loss2: {self_consistency_loss2}")
+                print(f"self consistency loss1: {model.alpha_1} * {self_consistency_loss1}")
+                print(f"self consistency loss2: {model.alpha_2} *  {self_consistency_loss2}")
 
         tr.stop("forward")
         tr.start("backward")
