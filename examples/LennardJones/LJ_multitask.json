@@ -49,8 +49,8 @@
             "azimutal_angle"
          ],
          "max_neighbours": 20,
-         "hidden_dim": 100,
-         "num_conv_layers": 10,
+         "hidden_dim": 20,
+         "num_conv_layers": 4,
          "output_heads": {
             "graph": {
                "num_sharedlayers": 2,
@@ -74,9 +74,16 @@
             1,
             1
          ],
-        "alpha_1": 0.0,
-        "alpha_2": 0.0
-        
+         "anneal": {
+            "start_value": 1.0,
+            "rate": 0.2,
+            "frequency": 3
+         },
+         "cold_start": {
+            "final_value": 1.0,
+            "rate": 1.2,
+            "cutoff_epoch": 5
+         }
       },
       "Variables_of_interest": {
          "input_node_features": [
@@ -100,7 +107,7 @@
          ]
       },
       "Training": {
-         "num_epoch": 2,
+         "num_epoch": 50,
          "batch_size": 3,
          "continue": 0,
          "EarlyStopping": true,

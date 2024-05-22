@@ -400,6 +400,8 @@ def train_model(argv=None):
         log_name,
         verbosity,
         create_plots=False,
+        anneal=config["NeuralNetwork"]["Architecture"]["anneal"],
+        cold_start=config["NeuralNetwork"]["Architecture"]["cold_start"]
     )
 
     hydragnn.utils.save_model(model, optimizer, log_name)

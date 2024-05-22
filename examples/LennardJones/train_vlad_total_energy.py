@@ -138,7 +138,8 @@ class LJDataset_VladTest(AbstractBaseDataset):
         return self.dataset[idx]
 
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
+def train_model(argv=None):
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -172,7 +173,7 @@ if __name__ == "__main__":
         dest="format",
         const="pickle",
     )
-    parser.set_defaults(format="adios")
+    parser.set_defaults(format="pickle")
     args = parser.parse_args()
 
     graph_feature_names = ["energy"]
@@ -279,40 +280,40 @@ if __name__ == "__main__":
                 use_subdir=True,
             )
 
-        if args.format == "adios":
-            ## adios
-            fname = os.path.join(
-                os.path.dirname(__file__), "./dataset/%s.bp" % modelname
-            )
-            adwriter = AdiosWriter(fname, comm)
-            adwriter.add("trainset", trainset)
-            adwriter.add("valset", valset)
-            adwriter.add("testset", testset)
-            # adwriter.add_global("minmax_node_feature", total.minmax_node_feature)
-            # adwriter.add_global("minmax_graph_feature", total.minmax_graph_feature)
-            adwriter.add_global("pna_deg", deg)
-            adwriter.save()
+        # if args.format == "adios":
+        #     ## adios
+        #     fname = os.path.join(
+        #         os.path.dirname(__file__), "./dataset/%s.bp" % modelname
+        #     )
+        #     adwriter = AdiosWriter(fname, comm)
+        #     adwriter.add("trainset", trainset)
+        #     adwriter.add("valset", valset)
+        #     adwriter.add("testset", testset)
+        #     # adwriter.add_global("minmax_node_feature", total.minmax_node_feature)
+        #     # adwriter.add_global("minmax_graph_feature", total.minmax_graph_feature)
+        #     adwriter.add_global("pna_deg", deg)
+        #     adwriter.save()
 
-        sys.exit(0)
+        # sys.exit(0)
 
     tr.initialize()
     tr.disable()
     timer = Timer("load_data")
     timer.start()
-    if args.format == "adios":
-        info("Adios load")
-        assert not (args.shmem and args.ddstore), "Cannot use both ddstore and shmem"
-        opt = {
-            "preload": False,
-            "shmem": args.shmem,
-            "ddstore": args.ddstore,
-            "ddstore_width": args.ddstore_width,
-        }
-        fname = os.path.join(os.path.dirname(__file__), "./dataset/%s.bp" % modelname)
-        trainset = AdiosDataset(fname, "trainset", comm, **opt)
-        valset = AdiosDataset(fname, "valset", comm, **opt)
-        testset = AdiosDataset(fname, "testset", comm, **opt)
-    elif args.format == "pickle":
+    # if args.format == "adios":
+    #     info("Adios load")
+    #     assert not (args.shmem and args.ddstore), "Cannot use both ddstore and shmem"
+    #     opt = {
+    #         "preload": False,
+    #         "shmem": args.shmem,
+    #         "ddstore": args.ddstore,
+    #         "ddstore_width": args.ddstore_width,
+    #     }
+    #     fname = os.path.join(os.path.dirname(__file__), "./dataset/%s.bp" % modelname)
+    #     trainset = AdiosDataset(fname, "trainset", comm, **opt)
+    #     valset = AdiosDataset(fname, "valset", comm, **opt)
+    #     testset = AdiosDataset(fname, "testset", comm, **opt)
+    if args.format == "pickle":
         info("Pickle load")
         basedir = os.path.join(
             os.path.dirname(__file__), "dataset", "%s.pickle" % modelname
@@ -391,7 +392,7 @@ if __name__ == "__main__":
         config["NeuralNetwork"],
         log_name,
         verbosity,
-        create_plots=False,
+        create_plots=True,
     )
 
     hydragnn.utils.save_model(model, optimizer, log_name)
@@ -405,4 +406,4 @@ if __name__ == "__main__":
             gp.pr_file(os.path.join("logs", log_name, "gp_timing.p%d" % rank))
         gp.pr_summary_file(os.path.join("logs", log_name, "gp_timing.summary"))
         gp.finalize()
-    sys.exit(0)
+    #sys.exit(0)
