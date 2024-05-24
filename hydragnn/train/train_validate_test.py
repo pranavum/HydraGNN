@@ -64,6 +64,8 @@ def train_validate_test(
     plot_init_solution=True,
     plot_hist_solution=False,
     create_plots=False,
+    anneal=None,
+    cold_start=None
 ):
     num_epoch = config["Training"]["num_epoch"]
     EarlyStop = (
@@ -152,8 +154,8 @@ def train_validate_test(
             output_names=config['Variables_of_interest']['output_names']
 
             train_loss, train_taskserr = train(
-                    train_loader, model, optimizer, verbosity, profiler=prof,
-                    output_names=config['Variables_of_interest']['output_names']
+                    train_loader, model, optimizer, verbosity, epoch=epoch, profiler=prof,
+                    output_names=config['Variables_of_interest']['output_names'], anneal=anneal, cold_start=cold_start
                 )
 
             tr.stop("train")
@@ -424,8 +426,11 @@ def train(
     model,
     opt,
     verbosity,
+    epoch,
     profiler=None,
-    output_names=None
+    output_names=None,
+    anneal=None,
+    cold_start=None
 ):
     if profiler is None:
         profiler = Profiler()
@@ -485,10 +490,16 @@ def train(
                 # since the forces are the negative gradiens, for the mismatch I need to compute the add instead of subtracting
                 self_consistency_loss1 = torch.sum(torch.abs(grads_energy_reshaped + atomic_forces))
                 self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_atomic_forces[0]]))
-                loss = loss + model.alpha_1 * (self_consistency_loss1) + model.alpha_2 * (self_consistency_loss2)
+                loss = loss + 0.0 * (self_consistency_loss1) + 1.0 * (self_consistency_loss2)
 
-                print(f"self consistency loss1: {model.alpha_1} * {self_consistency_loss1}")
-                print(f"self consistency loss2: {model.alpha_2} *  {self_consistency_loss2}")
+                # from math import exp
+                # sigmoid = lambda x: 1/(1 + exp(-x))
+                # anneal_coeff = anneal["start_value"] * (1 - anneal["rate"])**(round(epoch/anneal["frequency"]))
+                # cold_start_coeff = cold_start["final_value"] * sigmoid(cold_start["rate"] * (epoch - cold_start["cutoff_epoch"]))
+                # loss = loss + anneal_coeff * (self_consistency_loss1) + cold_start_coeff * (self_consistency_loss2)
+
+                #print(f"self consistency loss1: {alpha_1} * {self_consistency_loss1}")
+                #print(f"self consistency loss2: {alpha_2} *  {self_consistency_loss2}")
 
         tr.stop("forward")
         tr.start("backward")

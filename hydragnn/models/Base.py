@@ -39,9 +39,7 @@ class Base(Module):
         initial_bias=None,
         dropout: float = 0.25,
         num_conv_layers: int = 16,
-        num_nodes: int = None,
-        alpha_1: float = 1.0,
-        alpha_2: float = 0.0,
+        num_nodes: int = None
     ):
         super().__init__()
         self.device = get_device()
@@ -52,11 +50,6 @@ class Base(Module):
         self.graph_convs = ModuleList()
         self.feature_layers = ModuleList()
         self.num_nodes = num_nodes
-
-        # Coefficients for PINNs
-        self.alpha_1 = alpha_1
-        self.alpha_2 = alpha_2
-
         ##One head represent one variable
         ##Head can have different sizes, head_dims
         self.heads_NN = ModuleList()

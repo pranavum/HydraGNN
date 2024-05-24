@@ -10,6 +10,7 @@ import numpy as np
 try:
     import adios2 as ad2
 except ImportError:
+    print("ad2 not found")
     pass
 
 import torch_geometric.data
