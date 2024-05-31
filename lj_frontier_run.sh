@@ -30,4 +30,4 @@ export PYTHONPATH=$PWD:$PYTHONPATH
  
 cd examples/LennardJones/
  
-srun -n$((SLURM_JOB_NUM_NODES*8)) --gpus-per-task=1 --gpu-bind=closest python -u train.py --pickle
+srun -n$((SLURM_JOB_NUM_NODES*8)) --gpus-per-task=1 --gpu-bind=closest python -u mae_analysis.py

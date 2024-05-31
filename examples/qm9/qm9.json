@@ -9,7 +9,7 @@
             "radius": 7,
             "max_neighbours": 5,
             "periodic_boundary_conditions": false,
-            "hidden_dim": 5,
+            "hidden_dim": 15,
             "num_conv_layers": 6,
             "output_heads": {
                 "graph":{
@@ -30,7 +30,7 @@
             "denormalize_output": false
         },
         "Training": {
-            "num_epoch": 2,
+            "num_epoch": 20,
             "perc_train": 0.7,
             "loss_function_type": "mse",
             "batch_size": 64,
