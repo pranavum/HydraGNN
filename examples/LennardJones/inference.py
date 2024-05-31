@@ -128,8 +128,8 @@ def predict_test(argv=None):
 
     args = parser.parse_args()
 
-    dirpwd = os.path.dirname(os.path.abspath(__file__))
-    input_filename = os.path.join(dirpwd, args.inputfile)
+    #dirpwd = os.path.dirname(os.path.abspath(__file__))
+    input_filename = args.inputfile # os.path.join(dirpwd, args.inputfile)
     with open(input_filename, "r") as f:
         config = json.load(f)
     hydragnn.utils.setup_log(get_log_name_config(config))

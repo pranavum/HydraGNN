@@ -7,6 +7,7 @@
 #SBATCH -p batch
 #SBATCH -N 1
 #SBATCH -S 0
+#SBATCH -q debug
  
 set -x
 export MPICH_ENV_DISPLAY=1
@@ -28,6 +29,4 @@ export PYTHONPATH=/lustre/orion/cph161/world-shared/mlupopa/ADIOS_frontier_rocm5
  
 export PYTHONPATH=$PWD:$PYTHONPATH
  
-cd examples/LennardJones/
- 
-srun -n$((SLURM_JOB_NUM_NODES*8)) --gpus-per-task=1 --gpu-bind=closest python -u mae_analysis.py
+srun -n$((SLURM_JOB_NUM_NODES*8)) --gpus-per-task=1 --gpu-bind=closest python -u ../../examples/LennardJones/mae_analysis.py

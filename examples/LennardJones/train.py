@@ -307,7 +307,8 @@ def train_model(argv=None):
         #     adwriter.add_global("pna_deg", deg)
         #     adwriter.save()
 
-        sys.exit(0)
+        #sys.exit(0)
+        return
 
     tr.initialize()
     tr.disable()
@@ -400,7 +401,7 @@ def train_model(argv=None):
         config["NeuralNetwork"],
         log_name,
         verbosity,
-        create_plots=False,
+        create_plots=config["Visualization"]["create_plots"],
         alpha_values=config["NeuralNetwork"]["Architecture"]["alpha_values"]
     )
 

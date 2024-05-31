@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-def create_and_train(data_size, num_layers, num_channels_per_layer, epochs, alpha_values):
+def create_and_train(data_size, num_layers, num_channels_per_layer, epochs, batch_size, alpha_values):
     if data_size:
         generate_data(data_size)
         train_model(["--preonly"])
@@ -18,6 +18,7 @@ def create_and_train(data_size, num_layers, num_channels_per_layer, epochs, alph
         config["NeuralNetwork"]["Architecture"]["num_conv_layers"] = num_layers
         config["NeuralNetwork"]["Architecture"]["hidden_dim"] = num_channels_per_layer
         config["NeuralNetwork"]["Training"]["num_epoch"] = epochs
+        config["NeuralNetwork"]["Training"]["batch_size"] = batch_size
         config["NeuralNetwork"]["Architecture"]["alpha_values"] = alpha_values
         f.seek(0)
         json.dump(config, f, indent=3)
@@ -81,20 +82,27 @@ def plot_outputs(outputs, x_name):
     plt.savefig("forces_over_" + x_name + ".png")
 
 if __name__ == "__main__":
-    #generate_data(1_000_000)
+    #generate_data(300_000)
     #train_model(["--preonly"])
-    #outputs = increment_num_layers(5, range(1, 5), 2)
-    #outputs = increment_architecture(None, range(1, 11), 10)
-    #output = increment_epochs(None, 4, 20, range(10, 110, 10))
-    #plot_outputs(output, "Epochs")
+    data_size = 10_000
+    num_layers = 4
+    num_channels_per_layer = 20
+    epochs = 10
+    batch_size = 64
+    alpha_values = [["constant", 0.0], ["constant", 0.0]]
     output = create_and_train(
-        data_size=1_000_000,
-        num_layers=13,
-        num_channels_per_layer=30,
-        epochs=150,
-        alpha_values=[["constant", 0.0], ["constant", 0.0]]
+        data_size=None,
+        num_layers=num_layers,
+        num_channels_per_layer=num_channels_per_layer,
+        epochs=epochs,
+        batch_size=batch_size,
+        alpha_values=alpha_values
     )
     with open("output.txt", "w") as file:
+        print(f"data_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}")
+        print(f"data_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}", file=file)
+        print("\n\n\n")
+        print("\n\n\n", file=file)
         print(output)
         print(output, file=file)
         file.close()
