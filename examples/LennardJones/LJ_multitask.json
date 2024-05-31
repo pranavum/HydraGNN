@@ -74,6 +74,7 @@
             1,
             1
          ],
+         "alpha_values": [["constant", 1.0], ["anneal", {"start_value": 1.0, "rate": 0.2, "frequency": 1}]],
          "anneal": {
             "start_value": 1.0,
             "rate": 0.2,
@@ -82,7 +83,7 @@
          "cold_start": {
             "final_value": 1.0,
             "rate": 1.2,
-            "cutoff_epoch": 5
+            "cutoff_epoch": 10
          }
       },
       "Variables_of_interest": {
@@ -107,8 +108,8 @@
          ]
       },
       "Training": {
-         "num_epoch": 50,
-         "batch_size": 3,
+         "num_epoch": 100,
+         "batch_size": 64,
          "continue": 0,
          "EarlyStopping": true,
          "patience": 100,

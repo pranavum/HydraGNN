@@ -5,22 +5,23 @@ from inference import predict_test
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
-def create_and_train(data_size, num_layers, num_channels_per_layer, epochs):
+def create_and_train(data_size, num_layers, num_channels_per_layer, epochs, alpha_values):
     if data_size:
         generate_data(data_size)
-    with open("LJ_multitask.json", "r+") as f:
+        train_model(["--preonly"])
+    dirpwd = os.path.dirname(os.path.abspath(__file__))
+    input_filename = os.path.join(dirpwd, "LJ_multitask.json")
+    with open(input_filename, "r+") as f:
         config = json.load(f)
         config["NeuralNetwork"]["Architecture"]["num_conv_layers"] = num_layers
         config["NeuralNetwork"]["Architecture"]["hidden_dim"] = num_channels_per_layer
         config["NeuralNetwork"]["Training"]["num_epoch"] = epochs
+        config["NeuralNetwork"]["Architecture"]["alpha_values"] = alpha_values
         f.seek(0)
         json.dump(config, f, indent=3)
-    print("preprocessing")
-    train_model(["--preonly"])
-    print("training")
     train_model(["--pickle"])
-    print("predicting")
     return predict_test()
 
 def increment_data_size(size_range, num_layers, num_channels_per_layer, epochs):
@@ -80,13 +81,20 @@ def plot_outputs(outputs, x_name):
     plt.savefig("forces_over_" + x_name + ".png")
 
 if __name__ == "__main__":
-    #generate_data(10_000)
+    #generate_data(1_000_000)
+    #train_model(["--preonly"])
     #outputs = increment_num_layers(5, range(1, 5), 2)
     #outputs = increment_architecture(None, range(1, 11), 10)
-    outputs = increment_epochs(None, 4, 20, range(10, 60, 10))
-    plot_outputs(outputs, "Epochs")
-    #output = create_and_train(None, 4, 20, 50)
-    with open("outputs.txt", "w") as file:
-        print(outputs)
-        print(outputs, file=file)
+    #output = increment_epochs(None, 4, 20, range(10, 110, 10))
+    #plot_outputs(output, "Epochs")
+    output = create_and_train(
+        data_size=1_000_000,
+        num_layers=13,
+        num_channels_per_layer=30,
+        epochs=150,
+        alpha_values=[["constant", 0.0], ["constant", 0.0]]
+    )
+    with open("output.txt", "w") as file:
+        print(output)
+        print(output, file=file)
         file.close()

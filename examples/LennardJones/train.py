@@ -238,6 +238,7 @@ def train_model(argv=None):
     log("Command: {0}\n".format(" ".join([x for x in sys.argv])), rank=0)
 
     modelname = "LJ"
+    if "--preonly" in argv: args.preonly = True
     if args.preonly:
 
         ## local data
@@ -400,8 +401,7 @@ def train_model(argv=None):
         log_name,
         verbosity,
         create_plots=False,
-        anneal=config["NeuralNetwork"]["Architecture"]["anneal"],
-        cold_start=config["NeuralNetwork"]["Architecture"]["cold_start"]
+        alpha_values=config["NeuralNetwork"]["Architecture"]["alpha_values"]
     )
 
     hydragnn.utils.save_model(model, optimizer, log_name)
