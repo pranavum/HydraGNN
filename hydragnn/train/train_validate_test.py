@@ -496,12 +496,21 @@ def train(
                 cold_start_coeff = lambda cold_start: cold_start["final_value"] * sigmoid(cold_start["rate"] * (epoch - cold_start["cutoff_epoch"]))
                 #loss = loss + cold_start_coeff * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
 
-                if alpha_values[0][0] == "constant": loss += alpha_values[0][1] * (self_consistency_loss1)
-                elif alpha_values[0][0] == "anneal": loss += anneal_coeff(alpha_values[0][1]) * (self_consistency_loss1)
-                elif alpha_values[0][0] == "cold_start": loss += cold_start_coeff(alpha_values[0][1]) * (self_consistency_loss1)
-                if alpha_values[1][0] == "constant": loss += alpha_values[1][1] * (self_consistency_loss2)
-                elif alpha_values[1][0] == "anneal": loss += anneal_coeff(alpha_values[1][1]) * (self_consistency_loss2)
-                elif alpha_values[1][0] == "cold_start": loss += cold_start_coeff(alpha_values[1][1]) * (self_consistency_loss2)
+                if alpha_values[0][0] == "constant": pinn1 = alpha_values[0][1] * (self_consistency_loss1)
+                elif alpha_values[0][0] == "anneal": pinn1 = anneal_coeff(alpha_values[0][1]) * (self_consistency_loss1)
+                elif alpha_values[0][0] == "cold_start": pinn1 = cold_start_coeff(alpha_values[0][1]) * (self_consistency_loss1)
+                if alpha_values[1][0] == "constant": pinn2 = alpha_values[1][1] * (self_consistency_loss2)
+                elif alpha_values[1][0] == "anneal": pinn2 = anneal_coeff(alpha_values[1][1]) * (self_consistency_loss2)
+                elif alpha_values[1][0] == "cold_start": pinn2= cold_start_coeff(alpha_values[1][1]) * (self_consistency_loss2)
+
+                loss += pinn1 + pinn2
+
+                with open("pinn1_epochs.txt", "a") as p1:
+                    p1.write(f"{epoch}\n{pinn1}\n")
+                    p1.close()
+                with open("pinn2_epochs.txt", "a") as p1:
+                    p1.write(f"{epoch}\n{pinn2}\n")
+                    p1.close()
 
                 #print(f"self consistency loss1: {alpha_1} * {self_consistency_loss1}")
                 #print(f"self consistency loss2: {alpha_2} *  {self_consistency_loss2}")
@@ -531,6 +540,12 @@ def train(
 
     train_error = total_error / num_samples_local
     tasks_error = tasks_error / num_samples_local
+
+    # pinns_error = torch.zeros(2, device=get_device())
+    # pinns_error[0] = pinn1 * data.num_graphs
+    # pinns_error[1] = pinn2 * data.num_graphs
+    # pinns_error /= num_samples_local
+
     return train_error, tasks_error
 
 
