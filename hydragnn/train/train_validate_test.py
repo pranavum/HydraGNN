@@ -89,6 +89,9 @@ def train_validate_test(
     task_loss_test = torch.zeros((num_epoch, model.module.num_heads), device=device)
     task_loss_val = torch.zeros((num_epoch, model.module.num_heads), device=device)
 
+    pinn_coeff_train = torch.zeros((num_epoch, 2), device=device)
+    pinn_loss_train = torch.zeros((num_epoch, 2), device=device)
+
     # preparing for results visualization
     ## collecting node feature
     if create_plots:
@@ -152,7 +155,7 @@ def train_validate_test(
             tr.start("train")
             output_names=config['Variables_of_interest']['output_names']
 
-            train_loss, train_taskserr = train(
+            train_loss, train_taskserr, train_pinnscoeff, train_pinnserr = train(
                     train_loader, model, optimizer, verbosity, epoch=epoch, profiler=prof,
                     output_names=config['Variables_of_interest']['output_names'], alpha_values=alpha_values
                 )
@@ -200,6 +203,9 @@ def train_validate_test(
         task_loss_val[epoch, :] = val_taskserr
         task_loss_test[epoch, :] = test_taskserr
 
+        pinn_coeff_train[epoch, :] = train_pinnscoeff
+        pinn_loss_train[epoch, :] = train_pinnserr
+
         ###tracking the solution evolving with training
         if plot_hist_solution:
             visualizer.create_scatter_plots(
@@ -246,6 +252,9 @@ def train_validate_test(
         task_loss_val = reduce_values_ranks(task_loss_val)
         task_loss_test = reduce_values_ranks(task_loss_test)
 
+        #pinn_coeff_train = reduce_values_ranks(pinn_coeff_train)
+        pinn_loss_train = reduce_values_ranks(pinn_loss_train)
+
         # At the end of training phase, do the one test run for visualizer to get latest predictions
         test_loss, test_taskserr, true_values, predicted_values = test(
             test_loader, model, verbosity
@@ -272,6 +281,11 @@ def train_validate_test(
             predicted_values,
             output_names=config["Variables_of_interest"]["output_names"],
         )
+        
+        # task_loss_train = torch.concatenate((pinn_loss_train, task_loss_train))
+        # task_loss_test = torch.concatenate((pinn_loss_train, task_loss_test))
+        # task_loss_val = torch.concatenate((pinn_loss_train, task_loss_val))
+
         ######plot loss history#####
         visualizer.plot_history(
             total_loss_train,
@@ -282,6 +296,8 @@ def train_validate_test(
             task_loss_test,
             model.module.loss_weights,
             config["Variables_of_interest"]["output_names"],
+            pinn_coeff_train,
+            pinn_loss_train,
         )
 
 
@@ -419,6 +435,41 @@ def gather_tensor_ranks(head_values):
 
     return head_values
 
+def get_pinns(
+    epoch,
+    data,
+    head_index,
+    indices_total_energy,
+    indices_atomic_forces,
+    pred,
+    alpha_values=None
+):
+
+    if len(indices_total_energy)>0 and len(indices_atomic_forces)>0:
+        grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
+                                            grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
+        grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
+        grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
+        atomic_forces = data.y[head_index[indices_atomic_forces[0]]]
+        #self_consistency_loss = torch.nn.functional.l1_loss(grads_energy_reshaped, atomic_forces)
+        # since the forces are the negative gradiens, for the mismatch I need to compute the add instead of subtracting
+        self_consistency_loss1 = torch.sum(torch.abs(grads_energy_reshaped + atomic_forces))
+        self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_atomic_forces[0]]))
+        # loss = loss + 0.0 * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
+
+        from math import exp
+        sigmoid = lambda x: 1/(1 + exp(-x))
+        anneal_coeff = lambda anneal: anneal["start_value"] * (1 - anneal["rate"])**(round(epoch/anneal["frequency"]))
+        cold_start_coeff = lambda cold_start: cold_start["final_value"] * sigmoid(cold_start["rate"] * (epoch - cold_start["cutoff_epoch"]))
+
+        if alpha_values[0][0] == "constant": self_consistency_coeff1 = alpha_values[0][1]
+        elif alpha_values[0][0] == "anneal": self_consistency_coeff1 = anneal_coeff(alpha_values[0][1])
+        elif alpha_values[0][0] == "cold_start": self_consistency_coeff1 = cold_start_coeff(alpha_values[0][1])
+        if alpha_values[1][0] == "constant": self_consistency_coeff2 = alpha_values[1][1]
+        elif alpha_values[1][0] == "anneal": self_consistency_coeff2 = anneal_coeff(alpha_values[1][1])
+        elif alpha_values[1][0] == "cold_start": self_consistency_coeff2= cold_start_coeff(alpha_values[1][1])
+
+        return [[self_consistency_coeff1, self_consistency_coeff2], [self_consistency_loss1, self_consistency_loss2]]
 
 def train(
     loader,
@@ -442,6 +493,10 @@ def train(
 
     total_error = torch.tensor(0.0, device=get_device())
     tasks_error = torch.zeros(model.module.num_heads, device=get_device())
+    
+    consistencies_coeff = torch.zeros(2, device=get_device())
+    consistencies_error = torch.zeros(2, device=get_device())
+
     num_samples_local = 0
     model.train()
 
@@ -478,42 +533,37 @@ def train(
             data = data.to(get_device())
             pred = model(data)
             loss, tasks_loss = model.module.loss(pred, data.y, head_index)
-            if len(indices_total_energy)>0 and len(indices_atomic_forces)>0:
-                grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
-                                                   grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
-                grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
-                grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
-                atomic_forces = data.y[head_index[indices_atomic_forces[0]]]
-                #self_consistency_loss = torch.nn.functional.l1_loss(grads_energy_reshaped, atomic_forces)
-                # since the forces are the negative gradiens, for the mismatch I need to compute the add instead of subtracting
-                self_consistency_loss1 = torch.sum(torch.abs(grads_energy_reshaped + atomic_forces))
-                self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_atomic_forces[0]]))
-                # loss = loss + 0.0 * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
+            [[self_consistency_coeff1, self_consistency_coeff2], [self_consistency_loss1, self_consistency_loss2]] = get_pinns(epoch, data, head_index, indices_total_energy, indices_atomic_forces, pred, alpha_values)
+            loss += self_consistency_coeff1 * (self_consistency_loss1) + self_consistency_coeff2 * (self_consistency_loss2)
 
-                from math import exp
-                sigmoid = lambda x: 1/(1 + exp(-x))
-                anneal_coeff = lambda anneal: anneal["start_value"] * (1 - anneal["rate"])**(round(epoch/anneal["frequency"]))
-                cold_start_coeff = lambda cold_start: cold_start["final_value"] * sigmoid(cold_start["rate"] * (epoch - cold_start["cutoff_epoch"]))
-                #loss = loss + cold_start_coeff * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
+            # if len(indices_total_energy)>0 and len(indices_atomic_forces)>0:
+            #     grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
+            #                                        grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
+            #     grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
+            #     grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
+            #     atomic_forces = data.y[head_index[indices_atomic_forces[0]]]
+            #     #self_consistency_loss = torch.nn.functional.l1_loss(grads_energy_reshaped, atomic_forces)
+            #     # since the forces are the negative gradiens, for the mismatch I need to compute the add instead of subtracting
+            #     self_consistency_loss1 = torch.sum(torch.abs(grads_energy_reshaped + atomic_forces))
+            #     self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_atomic_forces[0]]))
+            #     # loss = loss + 0.0 * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
 
-                if alpha_values[0][0] == "constant": pinn1 = alpha_values[0][1] * (self_consistency_loss1)
-                elif alpha_values[0][0] == "anneal": pinn1 = anneal_coeff(alpha_values[0][1]) * (self_consistency_loss1)
-                elif alpha_values[0][0] == "cold_start": pinn1 = cold_start_coeff(alpha_values[0][1]) * (self_consistency_loss1)
-                if alpha_values[1][0] == "constant": pinn2 = alpha_values[1][1] * (self_consistency_loss2)
-                elif alpha_values[1][0] == "anneal": pinn2 = anneal_coeff(alpha_values[1][1]) * (self_consistency_loss2)
-                elif alpha_values[1][0] == "cold_start": pinn2= cold_start_coeff(alpha_values[1][1]) * (self_consistency_loss2)
+            #     from math import exp
+            #     sigmoid = lambda x: 1/(1 + exp(-x))
+            #     anneal_coeff = lambda anneal: anneal["start_value"] * (1 - anneal["rate"])**(round(epoch/anneal["frequency"]))
+            #     cold_start_coeff = lambda cold_start: cold_start["final_value"] * sigmoid(cold_start["rate"] * (epoch - cold_start["cutoff_epoch"]))
 
-                loss += pinn1 + pinn2
+            #     if alpha_values[0][0] == "constant": self_consistency_coeff1 = alpha_values[0][1]
+            #     elif alpha_values[0][0] == "anneal": self_consistency_coeff1 = anneal_coeff(alpha_values[0][1])
+            #     elif alpha_values[0][0] == "cold_start": self_consistency_coeff1 = cold_start_coeff(alpha_values[0][1])
+            #     if alpha_values[1][0] == "constant": self_consistency_coeff2 = alpha_values[1][1]
+            #     elif alpha_values[1][0] == "anneal": self_consistency_coeff2 = anneal_coeff(alpha_values[1][1])
+            #     elif alpha_values[1][0] == "cold_start": self_consistency_coeff2= cold_start_coeff(alpha_values[1][1])
 
-                with open("pinn1_epochs.txt", "a") as p1:
-                    p1.write(f"{epoch}\n{pinn1}\n")
-                    p1.close()
-                with open("pinn2_epochs.txt", "a") as p1:
-                    p1.write(f"{epoch}\n{pinn2}\n")
-                    p1.close()
+            #     loss += self_consistency_coeff1 * (self_consistency_loss1) + self_consistency_coeff2 * (self_consistency_loss2)
 
-                #print(f"self consistency loss1: {alpha_1} * {self_consistency_loss1}")
-                #print(f"self consistency loss2: {alpha_2} *  {self_consistency_loss2}")
+            #     #print(f"self consistency loss1: {alpha_1} * {self_consistency_loss1}")
+            #     #print(f"self consistency loss2: {alpha_2} *  {self_consistency_loss2}")
 
         tr.stop("forward")
         tr.start("backward")
@@ -531,6 +581,13 @@ def train(
             num_samples_local += data.num_graphs
             for itask in range(len(tasks_loss)):
                 tasks_error[itask] += tasks_loss[itask] * data.num_graphs
+            
+            consistencies_coeff[0] = self_consistency_coeff1 * data.num_graphs
+            consistencies_coeff[1] = self_consistency_coeff2 * data.num_graphs
+
+            consistencies_error[0] = self_consistency_loss1 * data.num_graphs
+            consistencies_error[1] = self_consistency_loss2 * data.num_graphs
+
         if ibatch < (nbatch - 1):
             tr.start("dataload")
         if use_ddstore:
@@ -541,12 +598,10 @@ def train(
     train_error = total_error / num_samples_local
     tasks_error = tasks_error / num_samples_local
 
-    # pinns_error = torch.zeros(2, device=get_device())
-    # pinns_error[0] = pinn1 * data.num_graphs
-    # pinns_error[1] = pinn2 * data.num_graphs
-    # pinns_error /= num_samples_local
+    consistencies_coeff = consistencies_coeff / num_samples_local
+    consistencies_error = consistencies_error / num_samples_local
 
-    return train_error, tasks_error
+    return train_error, tasks_error, consistencies_coeff, consistencies_error
 
 
 @torch.no_grad()

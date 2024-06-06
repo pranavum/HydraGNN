@@ -636,6 +636,8 @@ class Visualizer:
         task_loss_test,
         task_weights,
         task_names,
+        pinn_coeff_train,
+        pinn_loss_train,
     ):
         nrow = 1
         fhist = open(f"./logs/{self.model_with_config_name}/history_loss.pckl", "wb")
@@ -649,16 +651,21 @@ class Visualizer:
                 task_loss_test,
                 task_weights,
                 task_names,
+                pinn_coeff_train,
+                pinn_loss_train,
             ],
             fhist,
         )
         fhist.close()
         num_tasks = len(task_loss_train[0])
+        #print(f"num_tasks or len(task_loss_train[0]): {num_tasks}, task_loss_train.shape[1]: {task_loss_train.shape[1]}")
         if num_tasks > 0:
             task_loss_train = task_loss_train.cpu().detach().numpy()
             task_loss_val = task_loss_val.cpu().detach().numpy()
             task_loss_test = task_loss_test.cpu().detach().numpy()
-            nrow = 2
+            pinn_coeff_train = pinn_coeff_train.cpu().detach().numpy()
+            pinn_loss_train = pinn_loss_train.cpu().detach().numpy()
+            nrow = 4
         fig, axs = plt.subplots(nrow, num_tasks, figsize=(16, 6 * nrow))
         axs = axs.flatten()
         ax = axs[0]
@@ -681,7 +688,22 @@ class Visualizer:
             ax.set_yscale("log")
             if ivar == 0:
                 ax.legend()
-        for iext in range(num_tasks + task_loss_train.shape[1], axs.size):
+        for ivar in range(pinn_loss_train.shape[1]):
+            ax = axs[num_tasks + 2 + ivar]
+            ax.plot(pinn_loss_train[:, ivar])
+            ax.set_title(["PINN 1", "PINN 2"][ivar])
+            ax.set_xlabel("Epochs")
+            ax.set_yscale("log")
+            if ivar == 0:
+                ax.legend()
+        for ivar in range(pinn_coeff_train.shape[1]):
+            ax = axs[num_tasks + 4 + ivar]
+            ax.plot(pinn_coeff_train[:, ivar])
+            ax.set_title(["PINN 1 Coeff", "PINN 2 Coeff"][ivar])
+            ax.set_xlabel("Epochs")
+            if ivar == 0:
+                ax.legend()
+        for iext in range(num_tasks + 4 + task_loss_train.shape[1], axs.size):
             axs[iext].axis("off")
         plt.subplots_adjust(
             left=0.1, bottom=0.08, right=0.98, top=0.9, wspace=0.25, hspace=0.3

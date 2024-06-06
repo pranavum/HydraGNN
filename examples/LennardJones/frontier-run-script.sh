@@ -20,6 +20,8 @@ export NCCL_PROTO=Simple
 export OMP_NUM_THREADS=7
 export HYDRAGNN_AGGR_BACKEND=mpi
  
+cd ../../
+
 source /lustre/orion/cph161/world-shared/mlupopa/module-to-load-frontier-rocm571.sh
 source /lustre/orion/cph161/world-shared/mlupopa/max_conda_envs_frontier/bin/activate
 conda activate hydragnn_rocm571
@@ -30,4 +32,4 @@ export PYTHONPATH=$PWD:$PYTHONPATH
  
 cd examples/LennardJones/
  
-srun -n$((SLURM_JOB_NUM_NODES*8)) --gpus-per-task=1 --gpu-bind=closest python -u train.py --pickle
+srun -n$((SLURM_JOB_NUM_NODES*8)) --gpus-per-task=1 --gpu-bind=closest python -u mae_analysis.py
