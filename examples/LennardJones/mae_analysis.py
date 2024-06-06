@@ -55,6 +55,19 @@ def increment_epochs(data_size, num_layers, num_channels_per_layer, epoch_range)
         outputs[epoch] = create_and_train(data_size=data_size, num_layers=num_layers, num_channels_per_layer=num_channels_per_layer, epochs=epoch)
     return outputs
 
+def repeat_conditions(num_repeats, data_size, num_layers, num_channels_per_layer, epochs, batch_size, alpha_values):
+    outputs = {}
+    for model_index in range(num_repeats):
+        outputs[model_index] = create_and_train(
+            data_size=data_size,
+            num_layers=num_layers,
+            num_channels_per_layer=num_channels_per_layer,
+            epochs=epochs,
+            batch_size=batch_size,
+            alpha_values=alpha_values
+        )
+    return outputs
+
 def plot_outputs(outputs, x_name):
     x_values = []
     energy = []
@@ -89,7 +102,7 @@ if __name__ == "__main__":
     num_channels_per_layer = 20
     epochs = 10
     batch_size = 64
-    alpha_values = [["constant", 0.0], ["constant", 0.0]]
+    alpha_values = [["cold_start", {"final_value": 1.0, "rate": 1.2, "cutoff_epoch": 3}], ["constant", 0.0]]
     output = create_and_train(
         data_size=None,
         num_layers=num_layers,

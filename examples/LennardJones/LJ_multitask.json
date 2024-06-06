@@ -76,8 +76,12 @@
          ],
          "alpha_values": [
             [
-               "constant",
-               0.0
+               "cold_start",
+               {
+                  "final_value": 1.0,
+                  "rate": 1.2,
+                  "cutoff_epoch": 3
+               }
             ],
             [
                "constant",
