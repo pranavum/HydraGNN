@@ -41,6 +41,9 @@ import hydragnn.utils.tracer as tr
 import pandas as pd
 import optuna
 
+torch.manual_seed(42)
+import random
+random.seed(42)
 
 # FIXME: this works fine for now because we train on disordered atomic structures with potentials and forces computed with Lennard-Jones
 
@@ -494,7 +497,8 @@ if __name__ == "__main__":
 
     # Update the best trial information directly within the DataFrame
     best_trial_info = pd.Series({'Trial_ID': best_trial_id, 'Best_Validation_Loss': best_validation_loss})
-    trial_results = trial_results.append(best_trial_info, ignore_index=True)
+    #trial_results = trial_results.append(best_trial_info, ignore_index=True)
+    trial_results = pd.concat([trial_results, best_trial_info.to_frame().T], ignore_index=True)
 
     # Save the trial results to a CSV file
     trial_results.to_csv('hpo_results.csv', index=False)
