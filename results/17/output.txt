@@ -1,0 +1,10 @@
+data_size=10000,
+num_layers=6,
+num_channels_per_layer=24,
+epochs=200,
+alpha_values=[['constant', 1.0], ['cold_start', {'final_value': 1.0, 'rate': 0.3, 'cutoff_epoch': 130}]]
+
+
+
+
+{'total_energy': 0.0078115163348792625, 'atomic_forces': 368.3438766721691}

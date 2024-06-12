@@ -64,8 +64,8 @@
             "node": {
                "num_headlayers": 2,
                "dim_headlayers": [
-                  20,
-                  20
+                  2,
+                  2
                ],
                "type": "mlp"
             }
@@ -76,12 +76,8 @@
          ],
          "alpha_values": [
             [
-               "cold_start",
-               {
-                  "final_value": 1.0,
-                  "rate": 1.2,
-                  "cutoff_epoch": 3
-               }
+               "constant",
+               0.0
             ],
             [
                "constant",
@@ -121,7 +117,7 @@
          ]
       },
       "Training": {
-         "num_epoch": 10,
+         "num_epoch": 100,
          "batch_size": 64,
          "continue": 0,
          "EarlyStopping": true,

@@ -1,0 +1,10 @@
+data_size=10000,
+num_layers=6,
+num_channels_per_layer=24,
+epochs=200,
+alpha_values=[['cold_start', {'final_value': 1.0, 'rate': 0.3, 'cutoff_epoch': 100}], ['anneal', {'start_value': 1.0, 'rate': 0.06, 'frequency': 3}]]
+
+
+
+
+{'total_energy': 0.027505264905769208, 'atomic_forces': 371.2699880902727}

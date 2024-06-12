@@ -1,0 +1,12 @@
+negated pinn 2
+
+data_size=10000,
+num_layers=4,
+num_channels_per_layer=20,
+epochs=100,
+alpha_values=[['constant', 1.0], ['constant', 1.0]]
+
+
+
+
+{'total_energy': 0.013018171627074469, 'atomic_forces': 359.92120808410664}

@@ -445,6 +445,7 @@ def get_pinns(
     alpha_values=None
 ):
 
+    return [[0.0, 0.0], [0.0, 0.0]]
     if len(indices_total_energy)>0 and len(indices_atomic_forces)>0:
         grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
                                             grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
