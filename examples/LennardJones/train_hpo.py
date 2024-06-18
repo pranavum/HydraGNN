@@ -177,24 +177,43 @@ def objective(trial):
 
     # log("Command: {0}\n".format(" ".join([x for x in sys.argv])), rank=0)
 
-    # Define the search space for hyperparameters
-    model_type = trial.suggest_categorical('model_type', ['EGNN', 'PNA']) #, 'SchNet'
-    hidden_dim = trial.suggest_int('hidden_dim', 50, 300)
-    num_conv_layers = trial.suggest_int('num_conv_layers', 1, 5)
-    num_headlayers = trial.suggest_int('num_headlayers', 1, 3)
-    dim_headlayers = [trial.suggest_int(f'dim_headlayer_{i}', 50, 300) for i in range(num_headlayers)]
+    alpha_values = [['', 0], ['', 0]]
+    for i in range(2):
+        type = trial.suggest_categorical(f'alpha_{i}_type', ['constant', 'anneal', 'cold_start'])
+        alpha_values[i][0] = type
+        if type == 'constant':
+            alpha_values[i][1] = trial.suggest_float(f'alpha_{i}_value', 0.0, 1.0)
+        elif type == 'anneal':
+            start_value = trial.suggest_float(f'alpha_{i}_start_value', 0.0, 1.0)
+            rate = trial.suggest_float(f'alpha_{i}_rate', 0.1, 2.0)
+            frequency = trial.suggest_int(f'alpha_{i}_frequency', 1, 10)
+            alpha_values[i][1] = {'start_value': start_value, 'rate': rate, 'frequency': frequency}
+        elif type == 'cold_start':
+            final_value = trial.suggest_float(f'alpha_{i}_final_value', 0.0, 1.0)
+            rate = trial.suggest_float(f'alpha_{i}_rate', 0.1, 2.0)
+            cutoff_epoch = trial.suggest_int(f'alpha_{i}_cutoff_epoch', 0, config["NeuralNetwork"]["Training"]["num_epoch"])
+            alpha_values[i][1] = {'final_value': final_value, 'rate': rate, 'cutoff_epoch': cutoff_epoch}
+    
+    config["NeuralNetwork"]["Architecture"]["alpha_values"] = alpha_values
 
-    # Update the config dictionary with the suggested hyperparameters
-    config["NeuralNetwork"]["Architecture"]["model_type"] = model_type
-    config["NeuralNetwork"]["Architecture"]["hidden_dim"] = hidden_dim
-    config["NeuralNetwork"]["Architecture"]["num_conv_layers"] = num_conv_layers
-    #config["NeuralNetwork"]["Architecture"]["output_heads"]["node"]["num_headlayers"] = num_headlayers
-    #config["NeuralNetwork"]["Architecture"]["output_heads"]["node"]["dim_headlayers"] = dim_headlayers
-    config["NeuralNetwork"]["Architecture"]["output_heads"]["graph"]["num_headlayers"] = num_headlayers
-    config["NeuralNetwork"]["Architecture"]["output_heads"]["graph"]["dim_headlayers"] = dim_headlayers
+    # # Define the search space for hyperparameters
+    # model_type = trial.suggest_categorical('model_type', ['EGNN', 'PNA']) #, 'SchNet'
+    # hidden_dim = trial.suggest_int('hidden_dim', 50, 300)
+    # num_conv_layers = trial.suggest_int('num_conv_layers', 1, 5)
+    # num_headlayers = trial.suggest_int('num_headlayers', 1, 3)
+    # dim_headlayers = [trial.suggest_int(f'dim_headlayer_{i}', 50, 300) for i in range(num_headlayers)]
 
-    if model_type not in ['EGNN', 'SchNet', 'DimeNet']:
-        config["NeuralNetwork"]["Architecture"]["equivariance"] = False
+    # # Update the config dictionary with the suggested hyperparameters
+    # config["NeuralNetwork"]["Architecture"]["model_type"] = model_type
+    # config["NeuralNetwork"]["Architecture"]["hidden_dim"] = hidden_dim
+    # config["NeuralNetwork"]["Architecture"]["num_conv_layers"] = num_conv_layers
+    # #config["NeuralNetwork"]["Architecture"]["output_heads"]["node"]["num_headlayers"] = num_headlayers
+    # #config["NeuralNetwork"]["Architecture"]["output_heads"]["node"]["dim_headlayers"] = dim_headlayers
+    # config["NeuralNetwork"]["Architecture"]["output_heads"]["graph"]["num_headlayers"] = num_headlayers
+    # config["NeuralNetwork"]["Architecture"]["output_heads"]["graph"]["dim_headlayers"] = dim_headlayers
+
+    # if model_type not in ['EGNN', 'SchNet', 'DimeNet']:
+    #     config["NeuralNetwork"]["Architecture"]["equivariance"] = False
 
 
     (train_loader, val_loader, test_loader,) = hydragnn.preprocess.create_dataloaders(
@@ -261,7 +280,7 @@ def objective(trial):
     validation_loss = validation_loss.cpu().detach().numpy()
 
     # Append trial results to the DataFrame
-    trial_results.loc[trial_id] = [trial_id, hidden_dim, num_conv_layers, num_headlayers, dim_headlayers, model_type, validation_loss]
+    trial_results.loc[trial_id] = [trial_id, alpha_values, validation_loss]
 
     # Update information about the best trial
     if validation_loss < best_validation_loss:
@@ -485,7 +504,7 @@ if __name__ == "__main__":
     # sampler = optuna.samplers.NSGAIISampler(pop_size=100, crossover_prob=0.9, mutation_prob=0.1)
 
     # Create an empty DataFrame to store trial results
-    trial_results = pd.DataFrame(columns=['Trial_ID', 'Hidden_Dim', 'Num_Conv_Layers', 'Num_Headlayers', 'Dim_Headlayers', 'Model_Type', 'Validation_Loss'])
+    trial_results = pd.DataFrame(columns=['Trial_ID', 'Alpha_Values', 'Validation_Loss'])
 
     # Variables to store information about the best trial
     best_trial_id = None
