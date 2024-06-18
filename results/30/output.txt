@@ -1,0 +1,12 @@
+negating second constraint
+
+data_size=30000,
+num_layers=6,
+num_channels_per_layer=24,
+epochs=200,
+alpha_values=[['constant', 0.0], ['constant', 0.0]]
+
+
+
+
+{'total_energy': 0.00627358866292491, 'atomic_forces': 108.33804345924598}

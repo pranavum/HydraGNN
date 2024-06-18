@@ -101,6 +101,7 @@ def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
 
 if __name__ == "__main__":
+#def predict_derivative_test(argv=None):
 
     modelname = "LJ"
 
@@ -195,7 +196,7 @@ if __name__ == "__main__":
         predicted_values.extend(predicted.tolist())
         true_values.extend(true.tolist())
         deriv_energy.extend(grads_energy.flatten().tolist())
-        forces.extend(data.forces.flatten().tolist())
+        forces.extend(data.forces_pre_scaled.flatten().tolist())
 
     hist2d_norm = getcolordensity(true_values, predicted_values)
 

@@ -2,6 +2,7 @@ from pytorch_interatomic_potentials.configurational_data import generate_data
 from train import train_model
 from train_vlad_total_energy import train_model as train_model_energy
 from inference import predict_test
+from inference_derivative_energy import predict_derivative_test
 import json
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,6 +24,7 @@ def create_and_train(data_size, num_layers, num_channels_per_layer, epochs, batc
         f.seek(0)
         json.dump(config, f, indent=3)
     train_model(["--pickle"])
+    predict_derivative_test()
     return predict_test()
 
 def increment_data_size(size_range, num_layers, num_channels_per_layer, epochs):
@@ -102,9 +104,9 @@ if __name__ == "__main__":
     #generate_data(300_000)
     #train_model(["--preonly"])
     data_size = 10_000
-    num_layers = 4
-    num_channels_per_layer = 20
-    epochs = 100
+    num_layers = 5
+    num_channels_per_layer = 139
+    epochs = 10
     batch_size = 64
     alpha_values = [["constant", 0.0], ["constant", 0.0]]
     output = create_and_train(
