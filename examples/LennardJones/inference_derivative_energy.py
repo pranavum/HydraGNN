@@ -100,8 +100,8 @@ def getcolordensity(xdata, ydata):
 def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
 
-if __name__ == "__main__":
-#def predict_derivative_test(argv=None):
+#if __name__ == "__main__":
+def predict_derivative_test(argv=None):
 
     modelname = "LJ"
 
