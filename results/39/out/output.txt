@@ -1,0 +1,10 @@
+data_size=10000,
+num_layers=5,
+num_channels_per_layer=139,
+epochs=200,
+alpha_values=[['constant', 0.0], ['constant', 0.0]]
+
+
+
+
+{'total_energy': 0.018794414545155146, 'atomic_forces': 58.620619941487845}

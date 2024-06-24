@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-def create_and_train(data_size, num_layers, num_channels_per_layer, epochs, batch_size, alpha_values):
+def create_and_train(config_file, data_size, num_layers, num_channels_per_layer, epochs, batch_size, alpha_values):
     if data_size:
         generate_data(data_size)
         train_model(["--preonly"])
     dirpwd = os.path.dirname(os.path.abspath(__file__))
-    input_filename = os.path.join(dirpwd, "LJ_multitask.json")
+    input_filename = os.path.join(dirpwd, config_file)
     with open(input_filename, "r+") as f:
         config = json.load(f)
         config["NeuralNetwork"]["Architecture"]["num_conv_layers"] = num_layers
@@ -27,37 +27,37 @@ def create_and_train(data_size, num_layers, num_channels_per_layer, epochs, batc
     predict_derivative_test()
     return predict_test()
 
-def increment_data_size(size_range, num_layers, num_channels_per_layer, epochs):
+def increment_data_size(config_file, size_range, num_layers, num_channels_per_layer, epochs):
     outputs = {}
     for data_size in size_range:
         outputs[data_size] = create_and_train(data_size=data_size, num_layers=num_layers, num_channels_per_layer=num_channels_per_layer, epochs=epochs)
     return outputs
 
-def increment_num_layers(data_size, layers_range, num_channels_per_layer, epochs):
+def increment_num_layers(config_file, data_size, layers_range, num_channels_per_layer, epochs):
     outputs = {}
     for num_layers in layers_range:
         outputs[num_layers] = create_and_train(data_size=data_size, num_layers=num_layers, num_channels_per_layer=num_channels_per_layer, epochs=epochs)
     return outputs
 
-def increment_num_channels_per_layer(data_size, num_layers, channels_range, epochs):
+def increment_num_channels_per_layer(config_file, data_size, num_layers, channels_range, epochs):
     outputs = {}
     for num_channels_per_layer in channels_range:
         outputs[num_channels_per_layer] = create_and_train(data_size=data_size, num_layers=num_layers, num_channels_per_layer=num_channels_per_layer, epochs=epochs)
     return outputs
 
-def increment_architecture(data_size, layers_range, channel_scaling, epochs):
+def increment_architecture(config_file, data_size, layers_range, channel_scaling, epochs):
     outputs = {}
     for num_layers in layers_range:
         outputs[num_layers] = create_and_train(data_size=data_size, num_layers=num_layers, num_channels_per_layer=num_layers*channel_scaling, epochs=epochs)
     return outputs
 
-def increment_epochs(data_size, num_layers, num_channels_per_layer, epoch_range):
+def increment_epochs(config_file, data_size, num_layers, num_channels_per_layer, epoch_range):
     outputs = {}
     for epoch in epoch_range:
         outputs[epoch] = create_and_train(data_size=data_size, num_layers=num_layers, num_channels_per_layer=num_channels_per_layer, epochs=epoch)
     return outputs
 
-def repeat_conditions(num_repeats, data_size, num_layers, num_channels_per_layer, epochs, batch_size, alpha_values):
+def repeat_conditions(config_file, num_repeats, data_size, num_layers, num_channels_per_layer, epochs, batch_size, alpha_values):
     outputs = {}
     base_output_dir = "repeated_results"
     if not os.path.exists(base_output_dir): os.makedirs(base_output_dir)
@@ -103,6 +103,7 @@ def plot_outputs(outputs, x_name):
 if __name__ == "__main__":
     #generate_data(300_000)
     #train_model(["--preonly"])
+    config_file = "LJ_multitask.json"
     data_size = 10_000
     num_layers = 5
     num_channels_per_layer = 139
@@ -110,6 +111,7 @@ if __name__ == "__main__":
     batch_size = 64
     alpha_values = [["constant", 0.0], ["constant", 0.0]]
     output = create_and_train(
+        config_file=config_file,
         data_size=None,
         num_layers=num_layers,
         num_channels_per_layer=num_channels_per_layer,
@@ -118,8 +120,8 @@ if __name__ == "__main__":
         alpha_values=alpha_values
     )
     with open("output.txt", "w") as file:
-        print(f"data_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}")
-        print(f"data_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}", file=file)
+        print(f"config_file={config_file},\ndata_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}")
+        print(f"config_file={config_file},\ndata_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}", file=file)
         print("\n\n\n")
         print("\n\n\n", file=file)
         print(output)
