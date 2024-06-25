@@ -101,13 +101,14 @@ def plot_outputs(outputs, x_name):
     plt.savefig("forces_over_" + x_name + ".png")
 
 if __name__ == "__main__":
+    #predict_derivative_test()
     #generate_data(300_000)
-    #train_model(["--preonly"])
+    train_model(["--preonly"])
     config_file = "LJ_multitask.json"
     data_size = 10_000
     num_layers = 5
     num_channels_per_layer = 139
-    epochs = 10
+    epochs = 1
     batch_size = 64
     alpha_values = [["constant", 0.0], ["constant", 0.0]]
     output = create_and_train(
@@ -119,11 +120,11 @@ if __name__ == "__main__":
         batch_size=batch_size,
         alpha_values=alpha_values
     )
-    with open("output.txt", "w") as file:
-        print(f"config_file={config_file},\ndata_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}")
-        print(f"config_file={config_file},\ndata_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}", file=file)
-        print("\n\n\n")
-        print("\n\n\n", file=file)
-        print(output)
-        print(output, file=file)
-        file.close()
+    # with open("output.txt", "w") as file:
+    #     print(f"config_file={config_file},\ndata_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}")
+    #     print(f"config_file={config_file},\ndata_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}", file=file)
+    #     print("\n\n\n")
+    #     print("\n\n\n", file=file)
+    #     print(output)
+    #     print(output, file=file)
+    #     file.close()

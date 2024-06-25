@@ -100,72 +100,6 @@ def getcolordensity(xdata, ydata):
 def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
 
-
-def get_head_indices(model, data):
-    """In data.y (the true value here), all feature variables for a mini-batch are concatenated together as a large list.
-    To calculate loss function, we need to know true value for each feature in every head.
-    This function is to get the feature/head index/location in the large list."""
-    if all(ele == "graph" for ele in model.module.head_type):
-        return get_head_indices_graph(model, data)
-    else:
-        return get_head_indices_node_or_mixed(model, data)
-
-
-def get_head_indices_graph(model, data):
-    """this is for cases when outputs are all at graph level"""
-    # total length
-    nsize = data.y.shape[0]
-    # feature index for all heads
-    head_index = [None] * model.module.num_heads
-    if model.module.num_heads == 1:
-        head_index[0] = torch.arange(nsize)
-        return head_index
-    # dimensions of all heads
-    head_dims = model.module.head_dims
-    head_dimsum = sum(head_dims)
-
-    batch_size = data.batch.max() + 1
-    for ihead in range(model.module.num_heads):
-        head_each = torch.arange(head_dims[ihead])
-        head_ind_temporary = head_each.repeat(batch_size)
-        head_shift_temporary = sum(head_dims[:ihead]) + torch.repeat_interleave(
-            torch.arange(batch_size) * head_dimsum, head_dims[ihead]
-        )
-        head_index[ihead] = head_ind_temporary + head_shift_temporary
-    return head_index
-
-
-def get_head_indices_node_or_mixed(model, data):
-    """this is for cases when outputs are node level or mixed graph-node level"""
-    batch_size = data.batch.max() + 1
-    y_loc = data.y_loc
-    # head size for each sample
-    total_size = y_loc[:, -1]
-    # feature index for all heads
-    head_index = [None] * model.module.num_heads
-    if model.module.num_heads == 1:
-        head_index[0] = torch.arange(data.y.shape[0])
-        return head_index
-    # intermediate work list
-    head_ind_temporary = [None] * batch_size
-    # track the start loc of each sample
-    sample_start = torch.cumsum(total_size, dim=0) - total_size
-    sample_start = sample_start.view(-1, 1)
-    # shape (batch_size, model.module.num_heads), start and end of each head for each sample
-    start_index = sample_start + y_loc[:, :-1]
-    end_index = sample_start + y_loc[:, 1:]
-
-    # a large index tensor pool for all element in data.y
-    index_range = torch.arange(0, end_index[-1, -1], device=y_loc.device)
-    for ihead in range(model.module.num_heads):
-        for isample in range(batch_size):
-            head_ind_temporary[isample] = index_range[
-                start_index[isample, ihead] : end_index[isample, ihead]
-            ]
-        head_index[ihead] = torch.cat(head_ind_temporary, dim=0)
-
-    return head_index
-
 if __name__ == "__main__":
 #def predict_derivative_test(argv=None):
 
@@ -241,12 +175,15 @@ if __name__ == "__main__":
     test_MAE = 0.0
 
     num_samples = len(testset)
-    forces = []
-    forces_2 = []
-    deriv_energy = []
+    # forces = []
+    # forces_2 = []
+    # deriv_energy = []
+    data_pos = []
+    data_x_pos = []
 
     for data_id, data in enumerate(tqdm(testset)):
-        data.pos.requires_grad = True
+        print(data.x[:, 0].shape)
+        '''data.pos.requires_grad = True
         predicted = model(data.to(get_device()))
         predicted = predicted[variable_index].flatten()
         start = data.y_loc[0][variable_index].item()
@@ -265,15 +202,21 @@ if __name__ == "__main__":
         forces.extend(data.forces_pre_scaled.flatten().tolist())
         #head_index = get_head_indices(model, data)
         forces_2.extend(force_true.tolist())
+        data_pos.extend(data.pos.flatten())
+        num_forces_columns = data.forces_pre_scaled.shape[1]
+        start = 2 + num_forces_columns
+        data_x_pos.extend(data.x[:, 4:].flatten())
+
+    print(f"data_pos: {len(data_pos)}, data_x_pos: {len(data_x_pos)}")
 
     fig, ax = plt.subplots()
-    forces = forces[:500]
-    print(f"len of forces: {len(forces)}, len of forces_2: {len(forces_2)}")
+    # forces = forces[:500]
+    # print(f"len of forces: {len(forces)}, len of forces_2: {len(forces_2)}")
 
-    hist2d_norm = getcolordensity(deriv_energy, forces)
+    hist2d_norm = getcolordensity(data_pos, data_x_pos)
     fig, ax = plt.subplots()
     plt.scatter(
-        forces, forces_2, s=8, c=hist2d_norm, vmin=0, vmax=1
+        data_pos, data_x_pos, s=8, c=hist2d_norm, vmin=0, vmax=1
     )
     plt.clim(0, 1)
     ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", color="red")
@@ -283,4 +226,4 @@ if __name__ == "__main__":
     plt.title(f"forces")
     plt.draw()
     plt.tight_layout()
-    plt.savefig(f"./Forces_test_Scatterplot" + ".png", dpi=400)
+    plt.savefig(f"./Forces_test_Scatterplot" + ".png", dpi=400)'''
