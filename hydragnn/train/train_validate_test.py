@@ -445,16 +445,18 @@ def get_pinns(
     alpha_values=None
 ):
     #return [[0.0, 0.0], [0.0, 0.0]]
-    if len(indices_total_energy)>0 and len(indices_atomic_forces)>0:
+    if len(indices_total_energy)>0: # and len(indices_atomic_forces)>0:
         grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
-                                            grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True, allow_unused=True)[0]
+                                            grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
         grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
         grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
-        atomic_forces = data.y[head_index[indices_atomic_forces[0]]]
+        #atomic_forces = data.y[head_index[indices_atomic_forces[0]]]
+        atomic_forces = data.forces_pre_scaled.flatten()
         #self_consistency_loss = torch.nn.functional.l1_loss(grads_energy_reshaped, atomic_forces)
         # since the forces are the negative gradiens, for the mismatch I need to compute the add instead of subtracting
         self_consistency_loss1 = torch.sum(torch.abs(grads_energy_reshaped + atomic_forces))
-        self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_atomic_forces[0]]))
+        if not len(indices_atomic_forces): self_consistency_loss2 = 0.0
+        else: self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_atomic_forces[0]]))
         # loss = loss + 0.0 * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
 
         from math import exp
@@ -469,7 +471,14 @@ def get_pinns(
         elif alpha_values[1][0] == "anneal": self_consistency_coeff2 = anneal_coeff(alpha_values[1][1])
         elif alpha_values[1][0] == "cold_start": self_consistency_coeff2= cold_start_coeff(alpha_values[1][1])
 
+        self_consistency_coeff1 = self_consistency_coeff1 if self_consistency_coeff1 else 0.0
+        self_consistency_coeff2 = self_consistency_coeff2 if self_consistency_coeff2 else 0.0
+        self_consistency_loss1 = self_consistency_loss1 if self_consistency_loss1 else 0.0
+        self_consistency_loss2 = self_consistency_loss2 if self_consistency_loss2 else 0.0
+
         return [[self_consistency_coeff1, self_consistency_coeff2], [self_consistency_loss1, self_consistency_loss2]]
+    print("pinns not activated")
+    return [[0.0, 0.0], [0.0, 0.0]]
 
 def train(
     loader,
@@ -486,7 +495,7 @@ def train(
 
     if output_names is not None:
         # Find indices of "total_energy" in the list
-        indices_total_energy = [i for i, name in enumerate(output_names) if name == "total_energy"]
+        indices_total_energy = [i for i, name in enumerate(output_names) if name == "total_energy" or name == "energy"]
         indices_atomic_forces = [i for i, name in enumerate(output_names) if name == "atomic_forces"]
         assert len(indices_total_energy) <= 1, 'multiple outputs are called total_energy'
         assert len(indices_atomic_forces) <= 1, 'multiple outputs are called atomic_forces'

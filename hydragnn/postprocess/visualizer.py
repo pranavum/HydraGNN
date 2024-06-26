@@ -666,7 +666,7 @@ class Visualizer:
             pinn_coeff_train = pinn_coeff_train.cpu().detach().numpy()
             pinn_loss_train = pinn_loss_train.cpu().detach().numpy()
             nrow = 4
-        fig, axs = plt.subplots(nrow, num_tasks, figsize=(16, 6 * nrow))
+        fig, axs = plt.subplots(nrow, max(num_tasks, 2), figsize=(16, 6 * nrow))
         axs = axs.flatten()
         ax = axs[0]
         ax.plot(total_loss_train.cpu().detach().numpy(), "-", label="train")

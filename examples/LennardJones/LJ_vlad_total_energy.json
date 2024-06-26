@@ -43,8 +43,8 @@
             "azimutal_angle"
          ],
          "max_neighbours": 20,
-         "hidden_dim": 20,
-         "num_conv_layers": 4,
+         "hidden_dim": 139,
+         "num_conv_layers": 5,
          "output_heads": {
             "graph": {
                "num_sharedlayers": 2,
@@ -58,6 +58,16 @@
          },
          "task_weights": [
             1
+         ],
+         "alpha_values": [
+            [
+               "constant",
+               0.0
+            ],
+            [
+               "constant",
+               0.0
+            ]
          ]
       },
       "Variables_of_interest": {
@@ -91,8 +101,8 @@
          }
       },
       "Training": {
-         "num_epoch": 50,
-         "batch_size": 3,
+         "num_epoch": 1,
+         "batch_size": 64,
          "perc_train": 0.8,
          "continue": 0,
          "EarlyStopping": true,
