@@ -11,7 +11,7 @@ import os
 def create_and_train(config_file, data_size, num_layers, num_channels_per_layer, epochs, batch_size, alpha_values):
     if data_size:
         generate_data(data_size)
-        train_model(["--preonly"]) if "energy" in config_file else train_model(["--preonly"])
+        train_model(["--preonly"])
     dirpwd = os.path.dirname(os.path.abspath(__file__))
     input_filename = os.path.join(dirpwd, config_file)
     with open(input_filename, "r+") as f:
@@ -23,7 +23,7 @@ def create_and_train(config_file, data_size, num_layers, num_channels_per_layer,
         config["NeuralNetwork"]["Architecture"]["alpha_values"] = alpha_values
         f.seek(0)
         json.dump(config, f, indent=3)
-    train_model_energy(["--pickle"]) if "energy" in config_file else train_model(["--pickle"])
+    train_model(["--pickle"])
     predict_derivative_test()
     return predict_test()
 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
     #predict_derivative_test()
     #generate_data(300_000)
     #train_model(["--preonly"])
-    config_file = "LJ_vlad_total_energy.json"
+    config_file = "LJ_multitask.json"
     data_size = 10_000
     num_layers = 5
     num_channels_per_layer = 139
