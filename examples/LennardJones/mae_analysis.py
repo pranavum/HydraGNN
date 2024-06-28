@@ -164,6 +164,30 @@ def repeat_conditions(
         )
     return outputs
 
+def increment_batch_size(
+        config_file,
+        data_size,
+        num_layers,
+        num_channels_per_layer,
+        epochs,
+        batch_size_range,
+        alpha_values
+        ):
+    outputs = {}
+    batch_size = batch_size_range[0]
+    while batch_size <= batch_size_range[1]:
+        outputs[batch_size] = create_and_train(
+            config_file,
+            data_size=data_size,
+            num_layers=num_layers,
+            num_channels_per_layer=num_channels_per_layer,
+            epochs=epochs,
+            batch_size=batch_size,
+            alpha_values=alpha_values
+            )
+        batch_size *= 2
+    return outputs
+
 def plot_outputs(outputs, x_name):
     x_values = []
     energy = []
@@ -198,7 +222,7 @@ if __name__ == "__main__":
     data_size = 10_000
     num_layers = 5
     num_channels_per_layer = 139
-    epochs = 1
+    epochs = 100
     batch_size = 64
     alpha_values = [["constant", 0.0], ["constant", 0.0]]
     output = create_and_train(
