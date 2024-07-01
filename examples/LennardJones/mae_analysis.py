@@ -222,7 +222,7 @@ if __name__ == "__main__":
     data_size = 10_000
     num_layers = 5
     num_channels_per_layer = 139
-    epochs = 100
+    epochs = 1
     batch_size = 64
     alpha_values = [["constant", 0.0], ["constant", 0.0]]
     output = create_and_train(
@@ -235,8 +235,8 @@ if __name__ == "__main__":
         alpha_values=alpha_values
     )
     with open("output.txt", "w") as file:
-        print(f"config_file={config_file},\ndata_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}")
-        print(f"config_file={config_file},\ndata_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nalpha_values={alpha_values}", file=file)
+        print(f"config_file={config_file},\ndata_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nbatch_size={batch_size}\nalpha_values={alpha_values}")
+        print(f"config_file={config_file},\ndata_size={data_size},\nnum_layers={num_layers},\nnum_channels_per_layer={num_channels_per_layer},\nepochs={epochs},\nbatch_size={batch_size}\nalpha_values={alpha_values}", file=file)
         print("\n\n\n")
         print("\n\n\n", file=file)
         print(output)

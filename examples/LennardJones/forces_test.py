@@ -182,7 +182,8 @@ if __name__ == "__main__":
     data_x_pos = []
 
     for data_id, data in enumerate(tqdm(testset)):
-        print(data.x[:, 0].shape)
+        print(data.x[0, 1:4], data.pos[0])
+
         '''data.pos.requires_grad = True
         predicted = model(data.to(get_device()))
         predicted = predicted[variable_index].flatten()

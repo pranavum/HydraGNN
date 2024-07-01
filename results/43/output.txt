@@ -1,0 +1,13 @@
+Atomic displacement doubled
+
+config_file=LJ_multitask.json,
+data_size=10000,
+num_layers=5,
+num_channels_per_layer=139,
+epochs=1,
+alpha_values=[['constant', 0.0], ['constant', 0.0]]
+
+
+
+
+{'total_energy': 0.01640714512020349, 'atomic_forces': 417.43222097015394}
