@@ -19,8 +19,6 @@ export NCCL_PROTO=Simple
  
 export OMP_NUM_THREADS=7
 export HYDRAGNN_AGGR_BACKEND=mpi
- 
-cd ../../
 
 source /lustre/orion/cph161/world-shared/mlupopa/module-to-load-frontier-rocm571.sh
 source /lustre/orion/cph161/world-shared/mlupopa/max_conda_envs_frontier/bin/activate

@@ -41,6 +41,9 @@ import hydragnn.utils.tracer as tr
 import pandas as pd
 import optuna
 
+from piadamw import PhysicsInformedAdamW
+from inference_derivative_energy import predict_derivative_test
+
 torch.manual_seed(42)
 import random
 random.seed(42)
@@ -197,24 +200,25 @@ def objective(trial):
     # config["NeuralNetwork"]["Architecture"]["alpha_values"] = alpha_values
 
     # Define the search space for hyperparameters
-    model_type = trial.suggest_categorical('model_type', ['EGNN', 'PNA']) #, 'SchNet'
-    hidden_dim = trial.suggest_int('hidden_dim', 50, 300)
-    num_conv_layers = trial.suggest_int('num_conv_layers', 1, 5)
-    num_headlayers = trial.suggest_int('num_headlayers', 1, 3)
-    dim_headlayers = [trial.suggest_int(f'dim_headlayer_{i}', 50, 300) for i in range(num_headlayers)]
+    # model_type = trial.suggest_categorical('model_type', ['EGNN', 'PNA']) #, 'SchNet'
+    # hidden_dim = trial.suggest_int('hidden_dim', 50, 300)
+    # num_conv_layers = trial.suggest_int('num_conv_layers', 1, 5)
+    # num_headlayers = trial.suggest_int('num_headlayers', 1, 3)
+    # dim_headlayers = [trial.suggest_int(f'dim_headlayer_{i}', 50, 300) for i in range(num_headlayers)]
 
-    # Update the config dictionary with the suggested hyperparameters
-    config["NeuralNetwork"]["Architecture"]["model_type"] = model_type
-    config["NeuralNetwork"]["Architecture"]["hidden_dim"] = hidden_dim
-    config["NeuralNetwork"]["Architecture"]["num_conv_layers"] = num_conv_layers
-    #config["NeuralNetwork"]["Architecture"]["output_heads"]["node"]["num_headlayers"] = num_headlayers
-    #config["NeuralNetwork"]["Architecture"]["output_heads"]["node"]["dim_headlayers"] = dim_headlayers
-    config["NeuralNetwork"]["Architecture"]["output_heads"]["graph"]["num_headlayers"] = num_headlayers
-    config["NeuralNetwork"]["Architecture"]["output_heads"]["graph"]["dim_headlayers"] = dim_headlayers
+    # # Update the config dictionary with the suggested hyperparameters
+    # config["NeuralNetwork"]["Architecture"]["model_type"] = model_type
+    # config["NeuralNetwork"]["Architecture"]["hidden_dim"] = hidden_dim
+    # config["NeuralNetwork"]["Architecture"]["num_conv_layers"] = num_conv_layers
+    # #config["NeuralNetwork"]["Architecture"]["output_heads"]["node"]["num_headlayers"] = num_headlayers
+    # #config["NeuralNetwork"]["Architecture"]["output_heads"]["node"]["dim_headlayers"] = dim_headlayers
+    # config["NeuralNetwork"]["Architecture"]["output_heads"]["graph"]["num_headlayers"] = num_headlayers
+    # config["NeuralNetwork"]["Architecture"]["output_heads"]["graph"]["dim_headlayers"] = dim_headlayers
 
-    if model_type not in ['EGNN', 'SchNet', 'DimeNet']:
-        config["NeuralNetwork"]["Architecture"]["equivariance"] = False
+    # if model_type not in ['EGNN', 'SchNet', 'DimeNet']:
+    #     config["NeuralNetwork"]["Architecture"]["equivariance"] = False
 
+    mu = trial.suggest_float('mu', 5.0, 20.0)
 
     (train_loader, val_loader, test_loader,) = hydragnn.preprocess.create_dataloaders(
         trainset, valset, testset, config["NeuralNetwork"]["Training"]["batch_size"]
@@ -233,7 +237,8 @@ def objective(trial):
     model = hydragnn.utils.get_distributed_model(model, verbosity)
 
     learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    #optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = PhysicsInformedAdamW(model.parameters(), lr=learning_rate, mu=10**-mu)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001
     )
@@ -274,14 +279,16 @@ def objective(trial):
     """
 
     # Return the metric to minimize (e.g., validation loss)
-    validation_loss, tasks_loss = hydragnn.train.validate(val_loader, model, verbosity, reduce_ranks=True)
+    #validation_loss, tasks_loss = hydragnn.train.validate(val_loader, model, verbosity, reduce_ranks=True)
+    validation_loss = predict_derivative_test()
 
     # Move validation_loss to the CPU and convert to NumPy object
-    validation_loss = validation_loss.cpu().detach().numpy()
+    #validation_loss = validation_loss.cpu().detach().numpy()
 
     # Append trial results to the DataFrame
-    trial_results.loc[trial_id] = [trial_id, hidden_dim, num_conv_layers, num_headlayers, dim_headlayers, model_type, validation_loss]
+    #trial_results.loc[trial_id] = [trial_id, hidden_dim, num_conv_layers, num_headlayers, dim_headlayers, model_type, validation_loss]
     # trial_results.loc[trial_id] = [trial_id, alpha_values, validation_loss]
+    trial_results.loc[trial_id] = [trial_id, mu, validation_loss]
 
     # Update information about the best trial
     if validation_loss < best_validation_loss:
@@ -505,8 +512,9 @@ if __name__ == "__main__":
     # sampler = optuna.samplers.NSGAIISampler(pop_size=100, crossover_prob=0.9, mutation_prob=0.1)
 
     # Create an empty DataFrame to store trial results
-    trial_results = pd.DataFrame(columns=['Trial_ID', 'Hidden_Dim', 'Num_Conv_Layers', 'Num_Headlayers', 'Dim_Headlayers', 'Model_Type', 'Validation_Loss'])
+    # trial_results = pd.DataFrame(columns=['Trial_ID', 'Hidden_Dim', 'Num_Conv_Layers', 'Num_Headlayers', 'Dim_Headlayers', 'Model_Type', 'Validation_Loss'])
     # trial_results = pd.DataFrame(columns=['Trial_ID', 'Alpha_Values', 'Validation_Loss'])
+    trial_results = pd.DataFrame(columns=['Trial_ID', 'Mu', 'Validation_Loss'])
 
     # Variables to store information about the best trial
     best_trial_id = None

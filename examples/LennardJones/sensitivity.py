@@ -100,18 +100,7 @@ def getcolordensity(xdata, ydata):
 def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
 
-def output(model, dataset):
-    outputs = []
-    size = 0
-    for data_id, data in enumerate(tqdm(testset)):
-        output = model(data.to(get_device()))
-        outputs.append(output)
-        size += 1
-    #outputs = torch.stack(outputs, dim=0).sum(dim=0) / size
-    return outputs
-
 if __name__ == "__main__":
-#def predict_derivative_test(argv=None):
 
     modelname = "LJ"
 
@@ -179,67 +168,49 @@ if __name__ == "__main__":
     load_existing_model(model, modelname, path="./logs/")
     model.eval()
 
-    original_output = output(model, testset)
-    print(original_output)
-
-    sys.exit(0)
-
     variable_index = 0
-    #for output_name, output_type, output_dim in zip(config["NeuralNetwork"]["Variables_of_interest"]["output_names"], config["NeuralNetwork"]["Variables_of_interest"]["type"], config["NeuralNetwork"]["Variables_of_interest"]["output_dim"]):
+    sensitivities = {}
 
-    test_MAE = 0.0
+    perturbation = 1e-7
 
-    num_samples = len(testset)
-    # forces = []
-    # forces_2 = []
-    # deriv_energy = []
-    data_pos = []
-    data_x_pos = []
+    for output_name, output_type, output_dim in zip(config["NeuralNetwork"]["Variables_of_interest"]["output_names"], config["NeuralNetwork"]["Variables_of_interest"]["type"], config["NeuralNetwork"]["Variables_of_interest"]["output_dim"]):
 
-    for data_id, data in enumerate(tqdm(testset)):
-        print(data.x[0, 1:4], data.pos[0])
+        test_sensitivities = 0.0
 
-        '''data.pos.requires_grad = True
-        predicted = model(data.to(get_device()))
-        predicted = predicted[variable_index].flatten()
-        start = data.y_loc[0][variable_index].item()
-        end = data.y_loc[0][variable_index + 1].item()
-        true = data.y[start:end, 0]
-        force_start = data.y_loc[0][1].item()
-        force_end = data.y_loc[0][1 + 1].item()
-        force_true = data.y[start:end, 0]
-        test_MAE += torch.norm(predicted - true, p=1).item() / len(testset)
-        #predicted.backward(retain_graph=True)
-        #gradients = data.pos.grad
-        grads_energy = torch.autograd.grad(outputs=predicted, inputs=data.pos,
-                                           grad_outputs=data.num_nodes * torch.ones_like(predicted),
-                                           retain_graph=False)[0]
-        deriv_energy.extend(grads_energy.flatten().tolist())
-        forces.extend(data.forces_pre_scaled.flatten().tolist())
-        #head_index = get_head_indices(model, data)
-        forces_2.extend(force_true.tolist())
-        data_pos.extend(data.pos.flatten())
-        num_forces_columns = data.forces_pre_scaled.shape[1]
-        start = 2 + num_forces_columns
-        data_x_pos.extend(data.x[:, 4:].flatten())
+        num_samples = len(testset)
+        true_values = []
+        predicted_values = []
 
-    print(f"data_pos: {len(data_pos)}, data_x_pos: {len(data_x_pos)}")
+        for data_id, data in enumerate(tqdm(testset)):
+            predicted = model(data.to(get_device()))
+            predicted = predicted[variable_index].flatten()
+            start = data.y_loc[0][variable_index].item()
+            end = data.y_loc[0][variable_index + 1].item()
+            true = data.y[start:end, 0]
+            #test_MAE += torch.norm(predicted - true, p=1).item()/len(testset)
 
-    fig, ax = plt.subplots()
-    # forces = forces[:500]
-    # print(f"len of forces: {len(forces)}, len of forces_2: {len(forces_2)}")
+            predicted_values.extend(predicted.tolist())
+            true_values.extend(true.tolist())
 
-    hist2d_norm = getcolordensity(data_pos, data_x_pos)
-    fig, ax = plt.subplots()
-    plt.scatter(
-        data_pos, data_x_pos, s=8, c=hist2d_norm, vmin=0, vmax=1
-    )
-    plt.clim(0, 1)
-    ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", color="red")
-    plt.colorbar()
-    plt.xlabel("forces pre_scaled")
-    plt.ylabel("forces data.y")
-    plt.title(f"forces")
-    plt.draw()
-    plt.tight_layout()
-    plt.savefig(f"./Forces_test_Scatterplot" + ".png", dpi=400)'''
+            perturbed_data = data.clone()
+            perturbed_data.pos[:, 1:] += perturbation
+            perturbed_output = model(perturbed_data.to(get_device()))
+            perturbed_output = perturbed_output[variable_index].flatten()
+            start = perturbed_data.y_loc[0][variable_index].item()
+            end = perturbed_data.y_loc[0][variable_index + 1].item()
+            true = perturbed_data.y[start:end, 0]
+
+            output_change = (perturbed_output - predicted).abs().mean().item()
+
+            test_sensitivities += output_change / perturbation / num_samples
+
+        print(f"Test sensitivities {output_name}: ", test_sensitivities)
+        sensitivities[output_name] = test_sensitivities
+
+        variable_index += 1
+
+
+    # for name, layer in model.named_modules():
+    #     print(name)
+    #     for param_name, param in layer.named_parameters():
+    #         print(param_name, param)

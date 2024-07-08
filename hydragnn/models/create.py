@@ -47,20 +47,20 @@ def create_model_config(
         config["Architecture"]["freeze_conv_layers"],
         config["Architecture"]["initial_bias"],
         config["Architecture"]["num_nodes"],
-        config["Architecture"]["max_neighbours"],
+        config["Architecture"]["max_neighbours"], #
         config["Architecture"]["edge_dim"],
-        config["Architecture"]["pna_deg"],
-        config["Architecture"]["num_before_skip"],
-        config["Architecture"]["num_after_skip"],
-        config["Architecture"]["num_radial"],
-        config["Architecture"]["basis_emb_size"],
-        config["Architecture"]["int_emb_size"],
-        config["Architecture"]["out_emb_size"],
-        config["Architecture"]["envelope_exponent"],
-        config["Architecture"]["num_spherical"],
-        config["Architecture"]["num_gaussians"],
-        config["Architecture"]["num_filters"],
-        config["Architecture"]["radius"],
+        config["Architecture"]["pna_deg"], #
+        config["Architecture"]["num_before_skip"], #
+        config["Architecture"]["num_after_skip"], #
+        config["Architecture"]["num_radial"], #
+        config["Architecture"]["basis_emb_size"], #
+        config["Architecture"]["int_emb_size"], #
+        config["Architecture"]["out_emb_size"], #
+        config["Architecture"]["envelope_exponent"], #
+        config["Architecture"]["num_spherical"], #
+        config["Architecture"]["num_gaussians"], #
+        config["Architecture"]["num_filters"], #
+        config["Architecture"]["radius"], #
         config["Architecture"]["equivariance"],
         verbosity,
         use_gpu

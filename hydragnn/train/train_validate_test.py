@@ -448,6 +448,9 @@ def get_pinns(
     if len(indices_total_energy)>0: # and len(indices_atomic_forces)>0:
         grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
                                             grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
+        print(grads_energy.shape)
+        # iterative loop over all layers in nn, measure gradients in each layer wrt input, print torch.norm
+        # gives an idea of sensitivity
         grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
         grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
         #atomic_forces = data.y[head_index[indices_atomic_forces[0]]]
@@ -539,6 +542,7 @@ def train(
         with record_function("forward"):
             if output_names is not None:
                 data.pos.requires_grad = True
+                #data.x.requires_grad = True
             data = data.to(get_device())
             pred = model(data)
             loss, tasks_loss = model.module.loss(pred, data.y, head_index)
@@ -581,7 +585,8 @@ def train(
         tr.stop("backward")
         tr.start("opt_step")
         # print_peak_memory(verbosity, "Max memory allocated before optimizer step")
-        opt.step(self_consistency_loss1)
+        opt.step()
+        #opt.step(self_consistency_loss1)
         # print_peak_memory(verbosity, "Max memory allocated after optimizer step")
         tr.stop("opt_step")
         profiler.step()

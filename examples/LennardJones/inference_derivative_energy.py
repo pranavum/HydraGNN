@@ -174,6 +174,8 @@ def predict_derivative_test(argv=None):
 
     test_MAE = 0.0
 
+    deriv_MAE = 0.0
+
     num_samples = len(testset)
     true_values = []
     predicted_values = []
@@ -198,6 +200,8 @@ def predict_derivative_test(argv=None):
         deriv_energy.extend(grads_energy.flatten().tolist())
         forces.extend(data.forces_pre_scaled.flatten().tolist())
 
+        deriv_MAE = torch.norm(grads_energy.flatten() - data.forces_pre_scaled.flatten(), p=1).item() / len(testset)
+
     hist2d_norm = getcolordensity(true_values, predicted_values)
 
     fig, ax = plt.subplots()
@@ -215,6 +219,7 @@ def predict_derivative_test(argv=None):
     plt.savefig(f"./energy_Scatterplot" + ".png", dpi=400)
 
     print(f"Test MAE energy: ", test_MAE)
+    print(f"Test MAE deriv energy: ", deriv_MAE)
 
     hist2d_norm = getcolordensity(deriv_energy, forces)
     fig, ax = plt.subplots()
@@ -230,3 +235,5 @@ def predict_derivative_test(argv=None):
     plt.draw()
     plt.tight_layout()
     plt.savefig(f"./Forces_Scatterplot" + ".png", dpi=400)
+
+    return deriv_MAE
