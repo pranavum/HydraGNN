@@ -3,6 +3,7 @@ from train import train_model
 from train_vlad_total_energy import train_model as train_model_energy
 from inference import predict_test
 from inference_derivative_energy import predict_derivative_test
+from sensitivity import find_sensitivity
 import json
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,6 +26,7 @@ def create_and_train(config_file, data_size, num_layers, num_channels_per_layer,
         json.dump(config, f, indent=3)
     train_model(["--pickle"])
     predict_derivative_test()
+    find_sensitivity()
     return predict_test()
 
 def increment_data_size(

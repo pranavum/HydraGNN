@@ -100,7 +100,38 @@ def getcolordensity(xdata, ydata):
 def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
 
-if __name__ == "__main__":
+def compute_sensitivity_grad(pred, input):
+    #output = model(input.to(get_device()))
+    sensitivities = []
+    for layer_name, layer in model.named_modules():
+        layer_sensitivities = []
+        for param_name, param in layer.named_parameters():
+            # Find output gradient wrt parameter
+            param_grad = torch.autograd.grad(pred, param, grad_outputs=torch.ones_like(pred), retain_graph=True, allow_unused=True)[0]
+            if param_grad != None:
+                print(param_grad.shape)
+                # Add value of gradient to list of gradients in current layer
+                print(torch.mean(param_grad).item())
+                layer_sensitivities.append(torch.mean(param_grad).item()) #.detach().abs().mean().item())
+        # Add average gradient value per layer to list of layers
+        sensitivities.append(sum(layer_sensitivities) / len(layer_sensitivities) if layer_sensitivities else 0)
+    return sensitivities
+
+def mean_sensitivity(sensitivity_list):
+    sum_sensitivity = {}
+    for sensitivity_data_batch in sensitivity_list:
+        for layer_sensitivity_index in range(len(sensitivity_data_batch)):
+            if layer_sensitivity_index in sum_sensitivity:
+                sum_sensitivity[layer_sensitivity_index].append(sensitivity_data_batch[layer_sensitivity_index])
+            else:
+                sum_sensitivity[layer_sensitivity_index] = [sensitivity_data_batch[layer_sensitivity_index]]
+    mean_sensitivity = []
+    for index, lis in sum_sensitivity.items():
+        mean_sensitivity.append(sum(lis) / len(lis))
+    return mean_sensitivity
+
+#if __name__ == "__main__":
+def find_sensitivity(argv=None):
 
     modelname = "LJ"
 
@@ -167,6 +198,41 @@ if __name__ == "__main__":
 
     load_existing_model(model, modelname, path="./logs/")
     model.eval()
+
+    variable_index = 0
+    
+    total_sensitivities = {}
+
+    for output_name, output_type, output_dim in zip(config["NeuralNetwork"]["Variables_of_interest"]["output_names"], config["NeuralNetwork"]["Variables_of_interest"]["type"], config["NeuralNetwork"]["Variables_of_interest"]["output_dim"]):
+
+        num_samples = len(testset)
+        sensitivities = []
+
+        for data_id, data in enumerate(tqdm(testset)):
+            predicted = model(data.to(get_device()))
+            predicted = predicted[variable_index] #.flatten()
+            sensitivities.append(compute_sensitivity_grad(predicted, data))
+        
+        sensitivities = mean_sensitivity(sensitivities)
+
+        print(f"Test sensitivities {output_name}: ", list(zip(sensitivities,
+                                                         [name for name, layer in model.named_modules()])))
+        
+        plt.figure(figsize=(50, 8))
+        plt.bar([name for name, layer in model.named_modules()], sensitivities, color="blue")
+        plt.xlabel('Module Names')
+        plt.ylabel('Sensitivity')
+        plt.title('Sensitivity of Model Modules')
+
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.savefig(f"Layer_Sensitivities_{output_name}.png")
+        total_sensitivities[output_name] = sensitivities
+
+        variable_index += 1
+
+    return
+    sys.exit(0)
 
     variable_index = 0
     sensitivities = {}

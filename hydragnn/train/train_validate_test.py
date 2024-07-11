@@ -448,7 +448,7 @@ def get_pinns(
     if len(indices_total_energy)>0: # and len(indices_atomic_forces)>0:
         grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
                                             grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
-        print(grads_energy.shape)
+        #print(grads_energy.shape)
         # iterative loop over all layers in nn, measure gradients in each layer wrt input, print torch.norm
         # gives an idea of sensitivity
         grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
