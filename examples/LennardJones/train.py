@@ -134,7 +134,7 @@ class LJDataset(AbstractBaseDataset):
             forces_pre_scaling_factor=torch.tensor(forces_pre_scaling_factor).to(torch.float32),
             forces_pre_scaled=forces_pre_scaled,
             pos=torch_data[:, [1, 2, 3]].to(torch.float32),
-            x=torch.cat([torch_data[:, [0]], torch_data[:, [1, 2, 3, 4]], forces_pre_scaled], axis=1).to(torch.float32),
+            x=torch.cat([torch_data[:, [0, 4]], forces_pre_scaled], axis=1).to(torch.float32),
             y=torch.tensor(energy_per_atom_pretransformed).unsqueeze(0).to(torch.float32),
         )
         data = create_graph_fromXYZ(data)
@@ -381,8 +381,8 @@ def train_model(argv=None):
     model = hydragnn.utils.get_distributed_model(model, verbosity)
 
     learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
-    #optimizer = PhysicsInformedAdamW(model.parameters(), lr=learning_rate)
+    #optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = PhysicsInformedAdamW(model.parameters(), lr=learning_rate)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001
     )

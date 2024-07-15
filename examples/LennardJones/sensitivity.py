@@ -100,7 +100,7 @@ def getcolordensity(xdata, ydata):
 def info(*args, logtype="info", sep=" "):
     getattr(logging, logtype)(sep.join(map(str, args)))
 
-def compute_sensitivity_grad(pred, input):
+def compute_sensitivity_grad(model, pred, input):
     #output = model(input.to(get_device()))
     sensitivities = []
     for layer_name, layer in model.named_modules():
@@ -211,7 +211,7 @@ def find_sensitivity(argv=None):
         for data_id, data in enumerate(tqdm(testset)):
             predicted = model(data.to(get_device()))
             predicted = predicted[variable_index] #.flatten()
-            sensitivities.append(compute_sensitivity_grad(predicted, data))
+            sensitivities.append(compute_sensitivity_grad(model, predicted, data))
         
         sensitivities = mean_sensitivity(sensitivities)
 

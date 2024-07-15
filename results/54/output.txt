@@ -1,0 +1,12 @@
+config_file=LJ_multitask.json,
+data_size=10000,
+num_layers=5,
+num_channels_per_layer=139,
+epochs=1,
+batch_size=64
+alpha_values=[['constant', 0.0], ['constant', 0.0]]
+
+
+
+
+{'total_energy': 0.025221795942634326, 'atomic_forces': 194.3590824432371}
