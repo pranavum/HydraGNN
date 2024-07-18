@@ -218,7 +218,8 @@ def objective(trial):
     # if model_type not in ['EGNN', 'SchNet', 'DimeNet']:
     #     config["NeuralNetwork"]["Architecture"]["equivariance"] = False
 
-    mu = trial.suggest_float('mu', 5.0, 20.0)
+    lr = trial.suggest_float('lr', 1.0, 20.0)
+    mu = trial.suggest_float('mu', 1.0, 20.0)
 
     (train_loader, val_loader, test_loader,) = hydragnn.preprocess.create_dataloaders(
         trainset, valset, testset, config["NeuralNetwork"]["Training"]["batch_size"]
@@ -236,9 +237,9 @@ def objective(trial):
     )
     model = hydragnn.utils.get_distributed_model(model, verbosity)
 
-    learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
+    #learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
     #optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
-    optimizer = PhysicsInformedAdamW(model.parameters(), lr=learning_rate, mu=10**-mu)
+    optimizer = PhysicsInformedAdamW(model.parameters(), lr=10**-lr, mu=10**-mu)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001
     )
@@ -514,7 +515,7 @@ if __name__ == "__main__":
     # Create an empty DataFrame to store trial results
     # trial_results = pd.DataFrame(columns=['Trial_ID', 'Hidden_Dim', 'Num_Conv_Layers', 'Num_Headlayers', 'Dim_Headlayers', 'Model_Type', 'Validation_Loss'])
     # trial_results = pd.DataFrame(columns=['Trial_ID', 'Alpha_Values', 'Validation_Loss'])
-    trial_results = pd.DataFrame(columns=['Trial_ID', 'Mu', 'Validation_Loss'])
+    trial_results = pd.DataFrame(columns=['Trial_ID', 'LR' 'Mu', 'Validation_Loss'])
 
     # Variables to store information about the best trial
     best_trial_id = None

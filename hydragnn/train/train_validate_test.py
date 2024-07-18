@@ -64,7 +64,9 @@ def train_validate_test(
     plot_init_solution=True,
     plot_hist_solution=False,
     create_plots=False,
-    alpha_values=None
+    alpha_values=None,
+    losses=[],
+    params=[]
 ):
     num_epoch = config["Training"]["num_epoch"]
     EarlyStop = (
@@ -157,7 +159,8 @@ def train_validate_test(
 
             train_loss, train_taskserr, train_pinnscoeff, train_pinnserr = train(
                     train_loader, model, optimizer, verbosity, epoch=epoch, profiler=prof,
-                    output_names=config['Variables_of_interest']['output_names'], alpha_values=alpha_values
+                    output_names=config['Variables_of_interest']['output_names'], alpha_values=alpha_values,
+                    losses=losses, params=params
                 )
 
             tr.stop("train")
@@ -449,15 +452,13 @@ def get_pinns(
         grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
                                             grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
         #print(grads_energy.shape)
-        # iterative loop over all layers in nn, measure gradients in each layer wrt input, print torch.norm
-        # gives an idea of sensitivity
-        grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
+        grad_energy_post_scaled = grads_energy # data.grad_energy_post_scaling_factor * grads_energy
         grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
         #atomic_forces = data.y[head_index[indices_atomic_forces[0]]]
         atomic_forces = data.forces_pre_scaled.flatten()
         #self_consistency_loss = torch.nn.functional.l1_loss(grads_energy_reshaped, atomic_forces)
         # since the forces are the negative gradiens, for the mismatch I need to compute the add instead of subtracting
-        self_consistency_loss1 = torch.sum(torch.abs(grads_energy_reshaped + atomic_forces))
+        self_consistency_loss1 = torch.mean(torch.abs(grads_energy_reshaped + atomic_forces))
         if not len(indices_atomic_forces): self_consistency_loss2 = 0.0
         else: self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_atomic_forces[0]]))
         # loss = loss + 0.0 * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
@@ -491,7 +492,9 @@ def train(
     epoch,
     profiler=None,
     output_names=None,
-    alpha_values=None
+    alpha_values=None,
+    losses=[],
+    params=[]
 ):
     if profiler is None:
         profiler = Profiler()
@@ -548,35 +551,10 @@ def train(
             loss, tasks_loss = model.module.loss(pred, data.y, head_index)
             [[self_consistency_coeff1, self_consistency_coeff2], [self_consistency_loss1, self_consistency_loss2]] = get_pinns(epoch, data, head_index, indices_total_energy, indices_atomic_forces, pred, alpha_values)
             #loss += self_consistency_coeff1 * (self_consistency_loss1) + self_consistency_coeff2 * (self_consistency_loss2)
+            print("ratio of pinn_1 to loss:", self_consistency_loss1 / loss)
 
-            # if len(indices_total_energy)>0 and len(indices_atomic_forces)>0:
-            #     grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
-            #                                        grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
-            #     grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
-            #     grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
-            #     atomic_forces = data.y[head_index[indices_atomic_forces[0]]]
-            #     #self_consistency_loss = torch.nn.functional.l1_loss(grads_energy_reshaped, atomic_forces)
-            #     # since the forces are the negative gradiens, for the mismatch I need to compute the add instead of subtracting
-            #     self_consistency_loss1 = torch.sum(torch.abs(grads_energy_reshaped + atomic_forces))
-            #     self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_atomic_forces[0]]))
-            #     # loss = loss + 0.0 * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
-
-            #     from math import exp
-            #     sigmoid = lambda x: 1/(1 + exp(-x))
-            #     anneal_coeff = lambda anneal: anneal["start_value"] * (1 - anneal["rate"])**(round(epoch/anneal["frequency"]))
-            #     cold_start_coeff = lambda cold_start: cold_start["final_value"] * sigmoid(cold_start["rate"] * (epoch - cold_start["cutoff_epoch"]))
-
-            #     if alpha_values[0][0] == "constant": self_consistency_coeff1 = alpha_values[0][1]
-            #     elif alpha_values[0][0] == "anneal": self_consistency_coeff1 = anneal_coeff(alpha_values[0][1])
-            #     elif alpha_values[0][0] == "cold_start": self_consistency_coeff1 = cold_start_coeff(alpha_values[0][1])
-            #     if alpha_values[1][0] == "constant": self_consistency_coeff2 = alpha_values[1][1]
-            #     elif alpha_values[1][0] == "anneal": self_consistency_coeff2 = anneal_coeff(alpha_values[1][1])
-            #     elif alpha_values[1][0] == "cold_start": self_consistency_coeff2= cold_start_coeff(alpha_values[1][1])
-
-            #     loss += self_consistency_coeff1 * (self_consistency_loss1) + self_consistency_coeff2 * (self_consistency_loss2)
-
-            #     #print(f"self consistency loss1: {alpha_1} * {self_consistency_loss1}")
-            #     #print(f"self consistency loss2: {alpha_2} *  {self_consistency_loss2}")
+            losses.append(loss.item())
+            params.append(torch.cat([p.flatten() for p in model.parameters()]).detach().numpy())
 
         tr.stop("forward")
         tr.start("backward")

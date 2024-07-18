@@ -135,7 +135,7 @@ class LJDataset(AbstractBaseDataset):
             forces_pre_scaled=forces_pre_scaled,
             pos=torch_data[:, [1, 2, 3]].to(torch.float32),
             x=torch.cat([torch_data[:, [0, 4]], forces_pre_scaled], axis=1).to(torch.float32),
-            y=torch.tensor(total_energy).unsqueeze(0).to(torch.float32),
+            y=torch.tensor(energy_per_atom_pretransformed).unsqueeze(0).to(torch.float32),
         )
         data = create_graph_fromXYZ(data)
         data = compute_edge_lengths(data)
@@ -152,8 +152,7 @@ class LJDataset(AbstractBaseDataset):
         return self.dataset[idx]
 
 
-#if __name__ == "__main__":
-def train_model(argv=None):
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -240,7 +239,6 @@ def train_model(argv=None):
     log("Command: {0}\n".format(" ".join([x for x in sys.argv])), rank=0)
 
     modelname = "LJ"
-    if "--preonly" in argv: args.preonly = True
     if args.preonly:
 
         ## local data
@@ -309,8 +307,8 @@ def train_model(argv=None):
         #     adwriter.add_global("pna_deg", deg)
         #     adwriter.save()
 
-        #sys.exit(0)
-        return
+        sys.exit(0)
+        #return
 
     tr.initialize()
     tr.disable()
@@ -381,9 +379,8 @@ def train_model(argv=None):
     model = hydragnn.utils.get_distributed_model(model, verbosity)
 
     learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
-    mu_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["mu_rate"]
     #optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
-    optimizer = PhysicsInformedAdamW(model.parameters(), lr=learning_rate, mu=mu_rate)
+    optimizer = PhysicsInformedAdamW(model.parameters(), lr=learning_rate, mu=learning_rate)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001
     )
@@ -391,6 +388,9 @@ def train_model(argv=None):
     hydragnn.utils.load_existing_model_config(
         model, config["NeuralNetwork"]["Training"], optimizer=optimizer
     )
+
+    losses = []
+    params = []
 
     ##################################################################################################################
 
@@ -407,9 +407,27 @@ def train_model(argv=None):
         verbosity,
         create_plots=config["Visualization"]["create_plots"],
         alpha_values=config["NeuralNetwork"]["Architecture"]["alpha_values"],
-        losses=[],
-        params=[]
+        losses=losses,
+        params=params
     )
+
+    print("losses:", losses)
+    print("params:", params)
+    from sklearn.decomposition import PCA
+    import matplotlib.pyplot as plt
+    params_array = np.array(params)
+    pca = PCA(n_components=2)
+    pca_params = pca.fit_transform(params_array)
+    x = pca_params[:, 0]
+    y = pca_params[:, 1]
+    z = np.array(losses)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_trisurf(x, y, z, cmap='viridis')
+    ax.set_xlabel('PCA 1')
+    ax.set_ylabel('PCA 2')
+    ax.set_zlabel('Loss')
+    plt.show()
 
     hydragnn.utils.save_model(model, optimizer, log_name)
     hydragnn.utils.print_timers(verbosity)

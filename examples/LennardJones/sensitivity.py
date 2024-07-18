@@ -223,6 +223,7 @@ def find_sensitivity(argv=None):
         plt.xlabel('Module Names')
         plt.ylabel('Sensitivity')
         plt.title('Sensitivity of Model Modules')
+        plt.yscale("log")
 
         plt.xticks(rotation=45)
         plt.tight_layout()
