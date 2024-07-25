@@ -23,6 +23,9 @@ from hydragnn.utils.profile import Profiler
 from hydragnn.utils.distributed import get_device, print_peak_memory, check_remaining
 from hydragnn.preprocess.load_data import HydraDataLoader
 from hydragnn.utils.model import Checkpoint, EarlyStopping
+from hydragnn.utils.pickledataset import SimplePickleDataset
+
+import json
 
 import os
 
@@ -35,6 +38,8 @@ import pickle
 
 import hydragnn.utils.tracer as tr
 import time
+
+from examples.LennardJones.inference_derivative_energy import predict_derivative_test
 
 
 def get_nbatch(loader):
@@ -66,7 +71,9 @@ def train_validate_test(
     create_plots=False,
     alpha_values=None,
     losses=[],
-    params=[]
+    params=[],
+    deriv_maes=[],
+    testset=None
 ):
     num_epoch = config["Training"]["num_epoch"]
     EarlyStop = (
@@ -243,6 +250,28 @@ def train_validate_test(
                 "No time left. Early stop.",
             )
             break
+
+        deriv_MAE = 0.0
+
+        true_values = []
+        predicted_values = []
+        forces = []
+        deriv_energy = []
+        variable_index = 0
+
+        for data_id, data in enumerate(tqdm(testset)):
+            data.pos.requires_grad = True
+            predicted = model(data.to(get_device()))
+            predicted = predicted[variable_index].flatten()
+            grads_energy = torch.autograd.grad(outputs=predicted, inputs=data.pos,
+                                            grad_outputs=data.num_nodes * torch.ones_like(predicted),
+                                            retain_graph=False)[0]
+            predicted_values.extend(predicted.tolist())
+            deriv_energy.extend(grads_energy.flatten().tolist())
+            forces.extend(data.forces_pre_scaled.flatten().tolist())
+
+            deriv_MAE = torch.norm(grads_energy.flatten() - data.forces_pre_scaled.flatten(), p=1).item() / len(testset)
+        deriv_maes.append(deriv_MAE)
 
     timer.stop()
 
@@ -551,7 +580,6 @@ def train(
             loss, tasks_loss = model.module.loss(pred, data.y, head_index)
             [[self_consistency_coeff1, self_consistency_coeff2], [self_consistency_loss1, self_consistency_loss2]] = get_pinns(epoch, data, head_index, indices_total_energy, indices_atomic_forces, pred, alpha_values)
             #loss += self_consistency_coeff1 * (self_consistency_loss1) + self_consistency_coeff2 * (self_consistency_loss2)
-            print("ratio of pinn_1 to loss:", self_consistency_loss1 / loss)
 
             losses.append(loss.item())
             params.append(torch.cat([p.flatten() for p in model.parameters()]).detach().numpy())

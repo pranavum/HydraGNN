@@ -68,6 +68,7 @@ class PhysicsInformedAdamW(AdamW):
             state_steps.append(state["step"])
     def step(self, constraint, closure=None):
         loss = super(PhysicsInformedAdamW, self).step(closure)
+        self.zero_grad()
         for group in self.param_groups:
             params_with_grad = []
             constraint_grads = []

@@ -130,7 +130,7 @@
          ]
       },
       "Training": {
-         "num_epoch": 1,
+         "num_epoch": 2,
          "batch_size": 64,
          "continue": 0,
          "EarlyStopping": true,

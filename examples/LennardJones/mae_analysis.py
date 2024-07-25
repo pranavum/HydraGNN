@@ -34,9 +34,9 @@ def create_and_train(
         f.seek(0)
         json.dump(config, f, indent=3)
     train_model(["--pickle"])
-    predict_derivative_test()
+    #predict_derivative_test()
     #find_sensitivity()
-    return predict_test()
+    return predict_test(), predict_derivative_test()
 
 def increment_data_size(
         config_file,
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     data_size = 10_000
     num_layers = 5
     num_channels_per_layer = 139
-    epochs = 1
+    epochs = 2
     batch_size = 64
     lr = 1e-3
     alpha_values = [["constant", 0.0], ["constant", 0.0]]

@@ -394,6 +394,8 @@ def train_model(argv=None):
 
     ##################################################################################################################
 
+    deriv_maes = []
+
     hydragnn.train.train_validate_test(
         model,
         optimizer,
@@ -408,8 +410,18 @@ def train_model(argv=None):
         create_plots=config["Visualization"]["create_plots"],
         alpha_values=config["NeuralNetwork"]["Architecture"]["alpha_values"],
         losses=[],
-        params=[]
+        params=[],
+        deriv_maes=deriv_maes,
+        testset=testset
     )
+
+    import matplotlib.pyplot as plt
+
+    plt.plot(np.array(range(len(deriv_maes))), np.array(deriv_maes))
+    plt.xlabel("Epochs")
+    plt.ylabel("Energy deriv MAE")
+    plt.title(f"Energy deriv MAE over epochs")
+    plt.savefig(f"./deriv_over_epochs" + ".png")
 
     hydragnn.utils.save_model(model, optimizer, log_name)
     hydragnn.utils.print_timers(verbosity)
