@@ -278,7 +278,7 @@ if __name__ == "__main__":
     alpha_values = [["constant", 0.0], ["constant", 0.0]]
     output = create_and_train(
         config_file=config_file,
-        data_size=None,
+        data_size=data_size,
         num_layers=num_layers,
         num_channels_per_layer=num_channels_per_layer,
         epochs=epochs,

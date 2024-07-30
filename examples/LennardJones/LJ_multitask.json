@@ -40,7 +40,7 @@
    },
    "NeuralNetwork": {
       "Architecture": {
-         "periodic_boundary_conditions": true,
+      "periodic_boundary_conditions": true,
          "model_type": "EGNN",
          "equivariance": false,
          "radius": 5.0,

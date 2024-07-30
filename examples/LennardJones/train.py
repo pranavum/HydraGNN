@@ -135,7 +135,7 @@ class LJDataset(AbstractBaseDataset):
             forces_pre_scaled=forces_pre_scaled,
             pos=torch_data[:, [1, 2, 3]].to(torch.float32),
             x=torch.cat([torch_data[:, [0, 4]], forces_pre_scaled], axis=1).to(torch.float32),
-            y=torch.tensor(total_energy).unsqueeze(0).to(torch.float32),
+            y=torch.tensor(energy_per_atom_pretransformed).unsqueeze(0).to(torch.float32),
         )
         data = create_graph_fromXYZ(data)
         data = compute_edge_lengths(data)

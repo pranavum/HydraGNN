@@ -53,9 +53,9 @@ class LJpotential():
                     elif neighbor_pos_z > data.pos[node_id, 2]:
                         neighbor_pos_z = neighbor_pos_z - data.supercell_size[2, 2]
 
-                derivative_x = radial_derivative * (neighbor_pos_x - data.pos[node_id, 0]) / pair_distance
-                derivative_y = radial_derivative * (neighbor_pos_y - data.pos[node_id, 1]) / pair_distance
-                derivative_z = radial_derivative * (neighbor_pos_z - data.pos[node_id, 2]) / pair_distance
+                derivative_x = radial_derivative * (data.pos[node_id, 0] - neighbor_pos_x) / pair_distance
+                derivative_y = radial_derivative * (data.pos[node_id, 1] - neighbor_pos_y) / pair_distance
+                derivative_z = radial_derivative * (data.pos[node_id, 2] - neighbor_pos_y) / pair_distance
 
                 interatomic_forces_contribution_x = - derivative_x
                 interatomic_forces_contribution_y = - derivative_y

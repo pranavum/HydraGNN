@@ -177,7 +177,7 @@ def create_configuration(
     total_energy = torch.sum(data.x[:,4])
     energy_per_atom = total_energy/number_nodes
 
-    filetxt = numpy.array2string(energy_per_atom.detach().numpy())
+    filetxt = numpy.array2string(total_energy.detach().numpy())
 
     for index in range(0, 3):
         numpy_row = data.supercell_size[index, :].detach().numpy()
