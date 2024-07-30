@@ -270,7 +270,7 @@ def train_validate_test(
             deriv_energy.extend(grads_energy.flatten().tolist())
             forces.extend(data.forces_pre_scaled.flatten().tolist())
 
-            deriv_MAE = torch.norm(grads_energy.flatten() - data.forces_pre_scaled.flatten(), p=1).item() / len(testset)
+            deriv_MAE = torch.norm(grads_energy.flatten() + data.forces_pre_scaled.flatten(), p=1).item() / len(testset)
         deriv_maes.append(deriv_MAE)
 
     timer.stop()
