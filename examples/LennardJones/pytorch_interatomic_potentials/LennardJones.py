@@ -55,7 +55,7 @@ class LJpotential():
 
                 derivative_x = radial_derivative * (data.pos[node_id, 0] - neighbor_pos_x) / pair_distance
                 derivative_y = radial_derivative * (data.pos[node_id, 1] - neighbor_pos_y) / pair_distance
-                derivative_z = radial_derivative * (data.pos[node_id, 2] - neighbor_pos_y) / pair_distance
+                derivative_z = radial_derivative * (data.pos[node_id, 2] - neighbor_pos_z) / pair_distance
 
                 interatomic_forces_contribution_x = - derivative_x
                 interatomic_forces_contribution_y = - derivative_y

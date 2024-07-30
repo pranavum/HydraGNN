@@ -582,7 +582,7 @@ def train(
             #loss += self_consistency_coeff1 * (self_consistency_loss1) + self_consistency_coeff2 * (self_consistency_loss2)
 
             losses.append(loss.item())
-            params.append(torch.cat([p.flatten() for p in model.parameters()]).detach().numpy())
+            params.append(torch.cat([p.flatten() for p in model.parameters()]).cpu().detach().numpy())
 
         tr.stop("forward")
         tr.start("backward")
