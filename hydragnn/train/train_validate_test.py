@@ -480,8 +480,7 @@ def get_pinns(
     if len(indices_total_energy)>0: # and len(indices_atomic_forces)>0:
         grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
                                             grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
-        #print(grads_energy.shape)
-        grad_energy_post_scaled = grads_energy # data.grad_energy_post_scaling_factor * grads_energy
+        grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
         grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
         #atomic_forces = data.y[head_index[indices_atomic_forces[0]]]
         atomic_forces = data.forces_pre_scaled.flatten()
@@ -579,7 +578,7 @@ def train(
             pred = model(data)
             loss, tasks_loss = model.module.loss(pred, data.y, head_index)
             [[self_consistency_coeff1, self_consistency_coeff2], [self_consistency_loss1, self_consistency_loss2]] = get_pinns(epoch, data, head_index, indices_total_energy, indices_atomic_forces, pred, alpha_values)
-            #loss += self_consistency_coeff1 * (self_consistency_loss1) + self_consistency_coeff2 * (self_consistency_loss2)
+            loss += self_consistency_coeff1 * (self_consistency_loss1) + self_consistency_coeff2 * (self_consistency_loss2)
 
             losses.append(loss.item())
             params.append(torch.cat([p.flatten() for p in model.parameters()]).cpu().detach().numpy())
@@ -591,8 +590,8 @@ def train(
         tr.stop("backward")
         tr.start("opt_step")
         # print_peak_memory(verbosity, "Max memory allocated before optimizer step")
-        #opt.step()
-        opt.step(self_consistency_loss1)
+        opt.step()
+        #opt.step(self_consistency_loss1)
         # print_peak_memory(verbosity, "Max memory allocated after optimizer step")
         tr.stop("opt_step")
         profiler.step()

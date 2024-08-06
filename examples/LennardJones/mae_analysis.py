@@ -268,17 +268,17 @@ if __name__ == "__main__":
     #predict_derivative_test()
     #generate_data(10_000)
     #train_model(["--preonly"])
-    config_file = "LJ_multitask.json"
+    config_file = "LJ.json"
     data_size = 10_000
     num_layers = 5
     num_channels_per_layer = 139
-    epochs = 2
+    epochs = 1
     batch_size = 64
     lr = 1e-3
     alpha_values = [["constant", 0.0], ["constant", 0.0]]
     output = create_and_train(
         config_file=config_file,
-        data_size=data_size,
+        data_size=None,
         num_layers=num_layers,
         num_channels_per_layer=num_channels_per_layer,
         epochs=epochs,

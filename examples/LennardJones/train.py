@@ -163,7 +163,7 @@ def train_model(argv=None):
         action="store_true",
         help="preprocess only (no training)",
     )
-    parser.add_argument("--inputfile", help="input file", type=str, default="LJ_multitask.json")
+    parser.add_argument("--inputfile", help="input file", type=str, default="LJ.json")
     parser.add_argument("--mae", action="store_true", help="do mae calculation")
     parser.add_argument("--ddstore", action="store_true", help="ddstore dataset")
     parser.add_argument("--ddstore_width", type=int, help="ddstore width", default=None)
@@ -382,8 +382,8 @@ def train_model(argv=None):
 
     learning_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"]
     mu_rate = config["NeuralNetwork"]["Training"]["Optimizer"]["mu_rate"]
-    #optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
-    optimizer = PhysicsInformedAdamW(model.parameters(), lr=learning_rate, mu=mu_rate)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    #optimizer = PhysicsInformedAdamW(model.parameters(), lr=learning_rate, mu=mu_rate)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=5, min_lr=0.00001
     )
