@@ -218,8 +218,12 @@ def objective(trial):
     if model_type not in ['EGNN', 'SchNet', 'DimeNet']:
         config["NeuralNetwork"]["Architecture"]["equivariance"] = False
 
-    # lr = trial.suggest_float('lr', 1.0, 20.0)
+    lr = trial.suggest_float('lr', 1.0, 20.0)
+    config["NeuralNetwork"]["Training"]["Optimizer"]["learning_rate"] = 10**-lr
     # mu = trial.suggest_float('mu', 1.0, 20.0)
+
+    batch_size = trial.suggest_categorical('batch_size', [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
+    config["NeuralNetwork"]["Training"]["batch_size"] = batch_size
 
     (train_loader, val_loader, test_loader,) = hydragnn.preprocess.create_dataloaders(
         trainset, valset, testset, config["NeuralNetwork"]["Training"]["batch_size"]
@@ -293,7 +297,7 @@ def objective(trial):
     validation_loss = validation_loss.cpu().detach().numpy()
 
     # Append trial results to the DataFrame
-    trial_results.loc[trial_id] = [trial_id, hidden_dim, num_conv_layers, num_headlayers, dim_headlayers, model_type, validation_loss]
+    trial_results.loc[trial_id] = [trial_id, hidden_dim, num_conv_layers, num_headlayers, dim_headlayers, model_type, learning_rate, batch_size, validation_loss]
     # trial_results.loc[trial_id] = [trial_id, alpha_values, validation_loss]
     # trial_results.loc[trial_id] = [trial_id, mu, validation_loss]
 
@@ -519,7 +523,7 @@ if __name__ == "__main__":
     # sampler = optuna.samplers.NSGAIISampler(pop_size=100, crossover_prob=0.9, mutation_prob=0.1)
 
     # Create an empty DataFrame to store trial results
-    trial_results = pd.DataFrame(columns=['Trial_ID', 'Hidden_Dim', 'Num_Conv_Layers', 'Num_Headlayers', 'Dim_Headlayers', 'Model_Type', 'Validation_Loss'])
+    trial_results = pd.DataFrame(columns=['Trial_ID', 'Hidden_Dim', 'Num_Conv_Layers', 'Num_Headlayers', 'Dim_Headlayers', 'Model_Type', 'LR', 'Batch_Size', 'Validation_Loss'])
     # trial_results = pd.DataFrame(columns=['Trial_ID', 'Alpha_Values', 'Validation_Loss'])
     # trial_results = pd.DataFrame(columns=['Trial_ID', 'LR' 'Mu', 'Validation_Loss'])
 
