@@ -68,7 +68,7 @@
          "alpha_values": [
             [
                "constant",
-               0.0
+               1.0
             ],
             [
                "constant",
@@ -94,7 +94,7 @@
          ]
       },
       "Training": {
-         "num_epoch": 1,
+         "num_epoch": 10,
          "batch_size": 64,
          "continue": 0,
          "EarlyStopping": true,
@@ -109,8 +109,8 @@
       }
    },
    "Visualization": {
-      "plot_init_solution": true,
-      "plot_hist_solution": true,
-      "create_plots": true
+      "plot_init_solution": false,
+      "plot_hist_solution": false,
+      "create_plots": false
    }
 }

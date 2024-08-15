@@ -267,8 +267,8 @@ def plot_outputs(outputs, x_name):
 if __name__ == "__main__":
     #predict_derivative_test()
     #generate_data(10_000)
-    #train_model(["--preonly"])
-    config_file = "LJ.json"
+    train_model(["--preonly"])
+    config_file = "LJ_multitask.json"
     data_size = 10_000
     num_layers = 5
     num_channels_per_layer = 139

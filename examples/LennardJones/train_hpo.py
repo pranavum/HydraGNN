@@ -288,9 +288,10 @@ def objective(trial):
         gp.pr_summary_file(os.path.join("logs", log_name, "gp_timing.summary"))
         gp.finalize()
     """
+    validation_loss = hydragnn.train.validate_pinns(val_loader, model, verbosity, reduce_ranks=True, output_names=config["NeuralNetwork"]['Variables_of_interest']['output_names'])
 
     # Return the metric to minimize (e.g., validation loss)
-    validation_loss, tasks_loss = hydragnn.train.validate(val_loader, model, verbosity, reduce_ranks=True)
+    #validation_loss, tasks_loss = hydragnn.train.validate(val_loader, model, verbosity, reduce_ranks=True)
     #validation_loss = predict_derivative_test()
 
     # Move validation_loss to the CPU and convert to NumPy object
@@ -533,7 +534,7 @@ if __name__ == "__main__":
 
     # Create a study object and optimize the objective function
     study = optuna.create_study(direction='minimize')
-    study.optimize(objective, n_trials=2)
+    study.optimize(objective, n_trials=3)
 
     # Update the best trial information directly within the DataFrame
     best_trial_info = pd.Series({'Trial_ID': best_trial_id, 'Best_Validation_Loss': best_validation_loss})

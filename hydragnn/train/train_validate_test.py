@@ -270,7 +270,7 @@ def train_validate_test(
             deriv_energy.extend(grads_energy.flatten().tolist())
             forces.extend(data.forces_pre_scaled.flatten().tolist())
 
-            deriv_MAE = torch.norm(grads_energy.flatten() + data.forces_pre_scaled.flatten(), p=1).item() / len(testset)
+            deriv_MAE += torch.norm(grads_energy.flatten() + data.forces_pre_scaled.flatten(), p=1).item() / len(testset)
         deriv_maes.append(deriv_MAE)
 
     timer.stop()
@@ -479,7 +479,7 @@ def get_pinns(
     #return [[0.0, 0.0], [0.0, 0.0]]
     if len(indices_total_energy)>0: # and len(indices_atomic_forces)>0:
         grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
-                                            grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
+                                            grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True, create_graph=True)[0]
         grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
         grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
         #atomic_forces = data.y[head_index[indices_atomic_forces[0]]]
@@ -487,6 +487,8 @@ def get_pinns(
         #self_consistency_loss = torch.nn.functional.l1_loss(grads_energy_reshaped, atomic_forces)
         # since the forces are the negative gradiens, for the mismatch I need to compute the add instead of subtracting
         self_consistency_loss1 = torch.mean(torch.abs(grads_energy_reshaped + atomic_forces))
+        #self_consistency_loss1.requires_grad = True
+        #print("pinn grad:", self_consistency_loss1.requires_grad)
         if not len(indices_atomic_forces): self_consistency_loss2 = 0.0
         else: self_consistency_loss2 = torch.sum(torch.abs(grad_energy_post_scaled + pred[indices_atomic_forces[0]]))
         # loss = loss + 0.0 * (self_consistency_loss1) + 0.0 * (self_consistency_loss2)
@@ -621,6 +623,57 @@ def train(
     consistencies_error = consistencies_error / num_samples_local
 
     return train_error, tasks_error, consistencies_coeff, consistencies_error
+
+@torch.no_grad()
+def validate_pinns(loader, model, verbosity, reduce_ranks=True, output_names=None):
+    if output_names is not None:
+        # Find indices of "total_energy" in the list
+        indices_total_energy = [i for i, name in enumerate(output_names) if name == "total_energy" or name == "energy"]
+        indices_atomic_forces = [i for i, name in enumerate(output_names) if name == "atomic_forces"]
+        assert len(indices_total_energy) <= 1, 'multiple outputs are called total_energy'
+        assert len(indices_atomic_forces) <= 1, 'multiple outputs are called atomic_forces'
+
+    total_error = torch.tensor(0.0, device=get_device())
+    tasks_error = torch.zeros(model.module.num_heads, device=get_device())
+    num_samples_local = 0
+    model.eval()
+    use_ddstore = (
+        hasattr(loader.dataset, "ddstore")
+        and hasattr(loader.dataset.ddstore, "epoch_begin")
+        and bool(int(os.getenv("HYDRAGNN_USE_ddstore", "0")))
+    )
+    nbatch = get_nbatch(loader)
+
+    if use_ddstore:
+        loader.dataset.ddstore.epoch_begin()
+    for ibatch, data in iterate_tqdm(
+        enumerate(loader), verbosity, desc="Validate", total=nbatch
+    ):
+        if ibatch >= nbatch:
+            break
+        if use_ddstore:
+            loader.dataset.ddstore.epoch_end()
+        head_index = get_head_indices(model, data)
+        data = data.to(get_device())
+        pred = model(data)
+        error, tasks_loss = model.module.loss(pred, data.y, head_index)
+        grads_energy = torch.autograd.grad(outputs=pred[indices_total_energy[0]], inputs=data.pos,
+                                            grad_outputs=torch.ones_like(pred[indices_total_energy[0]]), retain_graph=True)[0]
+        grad_energy_post_scaled = data.grad_energy_post_scaling_factor * grads_energy
+        grads_energy_reshaped = torch.reshape(grad_energy_post_scaled, (-1, 1))
+        atomic_forces = data.forces_pre_scaled.flatten()
+        error = torch.mean(torch.abs(grads_energy_reshaped + atomic_forces))
+        total_error += error * data.num_graphs
+        num_samples_local += data.num_graphs
+        if use_ddstore:
+            loader.dataset.ddstore.epoch_begin()
+    if use_ddstore:
+        loader.dataset.ddstore.epoch_end()
+
+    val_error = total_error / num_samples_local
+    if reduce_ranks:
+        val_error = reduce_values_ranks(val_error)
+    return val_error
 
 
 @torch.no_grad()

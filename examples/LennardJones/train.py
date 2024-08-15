@@ -163,7 +163,7 @@ def train_model(argv=None):
         action="store_true",
         help="preprocess only (no training)",
     )
-    parser.add_argument("--inputfile", help="input file", type=str, default="LJ.json")
+    parser.add_argument("--inputfile", help="input file", type=str, default="LJ_multitask.json")
     parser.add_argument("--mae", action="store_true", help="do mae calculation")
     parser.add_argument("--ddstore", action="store_true", help="ddstore dataset")
     parser.add_argument("--ddstore_width", type=int, help="ddstore width", default=None)

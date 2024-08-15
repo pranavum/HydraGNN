@@ -1,0 +1,13 @@
+config_file=LJ.json,
+data_size=10000,
+num_layers=5,
+num_channels_per_layer=139,
+epochs=200,
+batch_size=8
+lr=0.001
+alpha_values=[['constant', 1.0], ['constant', 0.0]]
+
+
+
+
+({'total_energy': 0.03154963970184326}, 369.53812291473577)

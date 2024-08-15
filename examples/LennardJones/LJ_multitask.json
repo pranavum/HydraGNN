@@ -81,6 +81,7 @@
             }
          },
          "task_weights": [
+            1,
             1
          ],
          "alpha_values": [
@@ -112,16 +113,20 @@
             3
          ],
          "output_index": [
-            0
+            0,
+            2
          ],
          "type": [
-            "graph"
+            "graph",
+            "node"
          ],
          "output_dim": [
-            1
+            1,
+            3
          ],
          "output_names": [
-            "total_energy"
+            "total_energy",
+            "atomic_forces"
          ]
       },
       "Training": {
